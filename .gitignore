@@ -1,0 +1,19 @@
+# Dependency folders
+node_modules/
+frontend/node_modules/
+backend/__pycache__/
+venv/
+.env
+
+# Database data (보안 및 용량 문제로 제외)
+mysql_data/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Build outputs
+frontend/dist/
+frontend/build/backend/app/ai_model.joblib
+*.joblib
+*.joblib

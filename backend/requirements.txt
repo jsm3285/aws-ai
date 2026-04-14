@@ -1,0 +1,22 @@
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+cryptography
+pandas
+<<<<<<< HEAD
+numpy
+scikit-learn
+joblib
+bcrypt==4.0.1
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+=======
+
+scikit-learn
+bcrypt==4.0.1
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+>>>>>>> ca88073 (feat: AI 발주 제안 페이지 데이터 연동 및 현재고/분석사유 추가)
