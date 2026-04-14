@@ -4,17 +4,6 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
-<<<<<<< HEAD
-from datetime import date as date_type
-import datetime
-from pydantic import BaseModel
-
-# database, models, auth, ml_logic 임포트
-from . import models, database, auth
-from .ml_logic import predict_sales_with_rf  # ⭐️ AI 로직 임포트
-
-app = FastAPI(title="Nexus Core API v3.5 - Kinetic AI Integrated")
-=======
 from datetime import datetime, timedelta, date as date_type
 from pydantic import BaseModel
 import os
@@ -25,7 +14,6 @@ import pandas as pd
 from . import models, database, auth
 
 app = FastAPI(title="Nexus Core API v3.5 - Kinetic Auth")
->>>>>>> ca88073 (feat: AI 발주 제안 페이지 데이터 연동 및 현재고/분석사유 추가)
 
 # CORS 설정
 app.add_middleware(
@@ -51,13 +39,6 @@ class SalesRequest(BaseModel):
     product_id: str
     quantity: int
 
-<<<<<<< HEAD
-@app.get("/")
-def read_root():
-    return {"status": "System Online", "version": "3.5 Kinetic AI"}
-
-# --- [로그인 API] ---
-=======
 # 발주 저장을 위한 새로운 스키마
 class OrderItem(BaseModel):
     product_id: str
@@ -71,7 +52,6 @@ def read_root():
     return {"status": "System Online", "version": "3.5 Kinetic"}
 
 # --- [로그인 전용 API] ---
->>>>>>> ca88073 (feat: AI 발주 제안 페이지 데이터 연동 및 현재고/분석사유 추가)
 @app.post("/api/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
@@ -86,11 +66,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         "full_name": user.full_name
     }
 
-<<<<<<< HEAD
-# --- [기능 1] 상품 입고 등록 (점장 전용) ---
-=======
 # --- [기능 1] 상품 입고 등록 ---
->>>>>>> ca88073 (feat: AI 발주 제안 페이지 데이터 연동 및 현재고/분석사유 추가)
 @app.post("/api/inventory/register")
 def register_product(
     item: ProductRegister, 
@@ -180,14 +156,10 @@ def get_real_inventory(
             .filter(models.SalesHistory.product_id == p.id)\
             .order_by(models.SalesHistory.date.desc()).first()
         
-<<<<<<< HEAD
-        remains = (last_history.current_stock + last_history.order_qty - last_history.sales_qty) if last_history else 0
-=======
         if last_history:
             remains = last_history.current_stock + last_history.order_qty - last_history.sales_qty
         else:
             remains = 0
->>>>>>> ca88073 (feat: AI 발주 제안 페이지 데이터 연동 및 현재고/분석사유 추가)
 
         inventory_list.append({
             "id": p.id,
@@ -218,46 +190,6 @@ def get_dashboard_stats(
         "categories_count": len(set(item["category"] for item in inventory))
     }
 
-<<<<<<< HEAD
-# --- [기능 5] AI 발주 추천 리스트 (Random Forest 적용) ---
-@app.get("/api/ai/recommendations")
-def get_ai_recommendations(
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    products = db.query(models.Product).all()
-    recommendations = []
-
-    for p in products:
-        # 해당 상품의 최근 30일치 판매 이력을 가져와서 AI 학습 데이터로 사용
-        history = db.query(models.SalesHistory)\
-            .filter(models.SalesHistory.product_id == p.id)\
-            .order_by(models.SalesHistory.date.desc())\
-            .limit(30).all()
-        
-        # ML 로직 호출
-        history_list = [h.__dict__ for h in history]
-        recommended_qty = predict_sales_with_rf(history_list)
-
-        recommendations.append({
-            "id": p.id,
-            "name": p.name,
-            "category": p.category,
-            "recommended_qty": recommended_qty,
-            "reason": "랜덤 포레스트: 요일 및 판매 추세 분석 완료"
-        })
-        
-    return recommendations
-
-# --- [기능 6] 최종 발주 확정 처리 (점장 전용) ---
-@app.post("/api/orders/request")
-def request_order(
-    order_data: dict, 
-    admin: models.User = Depends(auth.get_current_admin_user)
-):
-    # 실제 발주 테이블이 있다면 여기서 저장 로직이 수행됩니다.
-    return {"status": "success", "message": f"{admin.full_name} 점장님, 제안된 수량으로 발주가 완료되었습니다."}
-=======
 # --- [기능 5] AI 발주 제안 (페이지 접속 시 자동 호출) ---
 @app.get("/api/ai/suggest-orders")
 def suggest_orders(db: Session = Depends(database.get_db)):
@@ -421,4 +353,3 @@ def get_combined_training_data(db: Session = Depends(database.get_db)):
         return combined.to_dict(orient='records')
     
     return df_csv.to_dict(orient='records')
->>>>>>> ca88073 (feat: AI 발주 제안 페이지 데이터 연동 및 현재고/분석사유 추가)
