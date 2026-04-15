@@ -11,6 +11,21 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)       # 암호화된 비밀번호
     full_name = Column(String(100))                             # 실제 이름
     role = Column(String(20), default="staff")                  # 권한: "admin"(점장) 또는 "staff"(알바)
+
+
+# 1-1. 카드 정보 (결제수단 관리용)
+class Card(Base):
+    __tablename__ = "cards"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(50), ForeignKey("users.username"), nullable=False, index=True)
+    card_holder_name = Column(String(100), nullable=True)       # 카드 소유자명
+    card_number = Column(String(16), nullable=True)             # 카드번호 16자리
+    expiry_4digits = Column(String(4), nullable=True)           # 유효기간 4자리(MMYY)
+    cvc_3digits = Column(String(3), nullable=True)              # CVC 3자리
+    pin_first_2digits = Column(String(2), nullable=True)        # 카드 비밀번호 앞 2자리
+    billing_address = Column(String(255), nullable=True)        # 청구지 주소
+    postal_code = Column(String(20), nullable=True)             # 우편번호
+    phone_number = Column(String(30), nullable=True)            # 연락처
     
     
 # 1. 상품 정보 (기존 유지)

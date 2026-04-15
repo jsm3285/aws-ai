@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timedelta, date as date_type
 from pydantic import BaseModel
 import os
@@ -47,6 +47,22 @@ class OrderItem(BaseModel):
 class OrderCreateRequest(BaseModel):
     items: List[OrderItem]
 
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    full_name: str
+    role: str = "staff"
+
+class CardUpsertRequest(BaseModel):
+    card_holder_name: Optional[str] = None
+    card_number: Optional[str] = None
+    expiry_4digits: Optional[str] = None
+    cvc_3digits: Optional[str] = None
+    pin_first_2digits: Optional[str] = None
+    billing_address: Optional[str] = None
+    postal_code: Optional[str] = None
+    phone_number: Optional[str] = None
+
 @app.get("/")
 def read_root():
     return {"status": "System Online", "version": "3.5 Kinetic"}
@@ -65,6 +81,124 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         "role": user.role,
         "full_name": user.full_name
     }
+
+@app.get("/api/users/me")
+def get_my_profile(current_user: models.User = Depends(auth.get_current_user)):
+    return {
+        "username": current_user.username,
+        "full_name": current_user.full_name,
+        "role": current_user.role
+    }
+
+@app.post("/api/register")
+def register_user(payload: RegisterRequest, db: Session = Depends(database.get_db)):
+    username = payload.username.strip()
+    full_name = payload.full_name.strip()
+    role = payload.role.strip().lower()
+
+    if not username or not payload.password.strip() or not full_name:
+        raise HTTPException(status_code=400, detail="아이디, 이름, 비밀번호는 필수 입력값입니다.")
+
+    if role not in {"admin", "staff"}:
+        raise HTTPException(status_code=400, detail="role은 admin 또는 staff만 허용됩니다.")
+
+    existing_user = db.query(models.User).filter(models.User.username == username).first()
+    if existing_user:
+        raise HTTPException(status_code=409, detail="이미 사용 중인 아이디입니다.")
+
+    new_user = models.User(
+        username=username,
+        hashed_password=auth.get_password_hash(payload.password),
+        full_name=full_name,
+        role=role
+    )
+    db.add(new_user)
+    db.commit()
+
+    return {"status": "success", "message": "회원가입이 완료되었습니다."}
+
+@app.get("/api/cards/me")
+def get_my_card(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    card = db.query(models.Card).filter(models.Card.username == current_user.username).first()
+    if not card:
+        return {
+            "card_holder_name": None,
+            "card_number": None,
+            "expiry_4digits": None,
+            "cvc_3digits": None,
+            "pin_first_2digits": None,
+            "billing_address": None,
+            "postal_code": None,
+            "phone_number": None
+        }
+
+    return {
+        "card_holder_name": card.card_holder_name,
+        "card_number": card.card_number,
+        "expiry_4digits": card.expiry_4digits,
+        "cvc_3digits": card.cvc_3digits,
+        "pin_first_2digits": card.pin_first_2digits,
+        "billing_address": card.billing_address,
+        "postal_code": card.postal_code,
+        "phone_number": card.phone_number
+    }
+
+@app.put("/api/cards/me")
+def upsert_my_card(
+    payload: CardUpsertRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    def to_nullable(value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned if cleaned else None
+
+    def normalize_fixed_digits(value: Optional[str], digits: int) -> Optional[str]:
+        cleaned = to_nullable(value)
+        if not cleaned:
+            return None
+        return cleaned if (cleaned.isdigit() and len(cleaned) == digits) else None
+
+    card_holder_name = to_nullable(payload.card_holder_name)
+    card_number = normalize_fixed_digits(payload.card_number, 16)
+    expiry_4digits = normalize_fixed_digits(payload.expiry_4digits, 4)
+    cvc_3digits = normalize_fixed_digits(payload.cvc_3digits, 3)
+    pin_first_2digits = normalize_fixed_digits(payload.pin_first_2digits, 2)
+    billing_address = to_nullable(payload.billing_address)
+    postal_code = to_nullable(payload.postal_code)
+    phone_number = to_nullable(payload.phone_number)
+
+    card = db.query(models.Card).filter(models.Card.username == current_user.username).first()
+    if card:
+        card.card_holder_name = card_holder_name
+        card.card_number = card_number
+        card.expiry_4digits = expiry_4digits
+        card.cvc_3digits = cvc_3digits
+        card.pin_first_2digits = pin_first_2digits
+        card.billing_address = billing_address
+        card.postal_code = postal_code
+        card.phone_number = phone_number
+    else:
+        card = models.Card(
+            username=current_user.username,
+            card_holder_name=card_holder_name,
+            card_number=card_number,
+            expiry_4digits=expiry_4digits,
+            cvc_3digits=cvc_3digits,
+            pin_first_2digits=pin_first_2digits,
+            billing_address=billing_address,
+            postal_code=postal_code,
+            phone_number=phone_number
+        )
+        db.add(card)
+
+    db.commit()
+    return {"status": "success", "message": "카드 정보가 저장되었습니다."}
 
 # --- [기능 1] 상품 입고 등록 ---
 @app.post("/api/inventory/register")
@@ -148,24 +282,26 @@ def get_real_inventory(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
+    from sqlalchemy import func
+    
+    # 1. 실제 물리 재고(InventoryLots) 확인합산
+    lots = db.query(
+        models.InventoryLots.product_id, 
+        func.sum(models.InventoryLots.quantity).label("total")
+    ).group_by(models.InventoryLots.product_id).all()
+    stock_map = {l.product_id: int(l.total) if l.total is not None else 0 for l in lots}
+    
     products = db.query(models.Product).all()
     inventory_list = []
 
     for p in products:
-        last_history = db.query(models.SalesHistory)\
-            .filter(models.SalesHistory.product_id == p.id)\
-            .order_by(models.SalesHistory.date.desc()).first()
-        
-        if last_history:
-            remains = last_history.current_stock + last_history.order_qty - last_history.sales_qty
-        else:
-            remains = 0
+        remains = stock_map.get(p.id, 0)
 
         inventory_list.append({
             "id": p.id,
             "name": p.name,
             "category": p.category,
-            "stock": max(0, remains),
+            "stock": remains,
             "status": "NORMAL" if remains >= 10 else ("WARNING" if remains > 0 else "OUT_OF_STOCK")
         })
         
@@ -206,8 +342,8 @@ def suggest_orders(db: Session = Depends(database.get_db)):
         # 2. 작년 데이터(CSV) 로드 - A열 날짜 기준 분석용
         csv_path = '/app/convenience_store_real_products_4years.csv'
         df_csv = pd.read_csv(csv_path)
-        # 컬럼명 강제 지정 (데이터 누락 방지)
-        df_csv.columns = ['날짜','코드','카테고리','상품명','가격','재고','입고','판매량','유통기한']
+        # 컬럼명 강제 지정 제거
+        # df_csv.columns = ['날짜','코드','카테고리','상품명','가격','재고','입고','판매량','유통기한']
         df_csv['날짜'] = pd.to_datetime(df_csv['날짜'])
         df_csv['판매량'] = pd.to_numeric(df_csv['판매량'], errors='coerce').fillna(0)
 
@@ -229,32 +365,34 @@ def suggest_orders(db: Session = Depends(database.get_db)):
                 # [AI 예측] 내일 얼마나 팔릴까?
                 c_id = le_cat.transform([p.category])[0]
                 n_id = le_name.transform([p.name])[0]
-                test_input = pd.DataFrame([[tomorrow.month, tomorrow.weekday(), c_id, n_id]], 
-                                        columns=['month', 'day_of_week', 'cat_id', 'name_id'])
-                
+                is_weekend = 1 if tomorrow.weekday() >= 5 else 0
+                # 날씨나 행사 여부는 임의값(맑음=0.0, 행사없음=0)으로 우선 설정
+                test_input = pd.DataFrame([[tomorrow.month, tomorrow.weekday(), is_weekend, c_id, n_id, 0.0, 0]], 
+                                        columns=['month', 'day_of_week', 'is_weekend', 'cat_id', 'name_id', 'precipitation', 'is_promotion'])
                 # AI가 예상한 순수 판매량 (예: 5.4개)
                 pred_sales = model.predict(test_input)[0] 
                 curr_stock = stock_map.get(p.id, 0)
 
-                # [인기 상품 판단] 작년 오늘 10개 이상 팔린 기록이 있는가?
+                # [인기 상품 판단] 과거 동일 날짜(월/일)에 20개 이상 팔린 기록이 있는가? (기존 10개는 너무 낮아 100종 전체가 핫트렌드가 됨)
                 is_high_demand_past = df_csv[
                     (df_csv['상품명'].str.strip() == p.name.strip()) & 
                     (df_csv['날짜'].dt.month == tomorrow.month) & 
                     (df_csv['날짜'].dt.day == tomorrow.day) & 
-                    (df_csv['판매량'] >= 10)
+                    (df_csv['판매량'] >= 20)
                 ]
                 is_special = not is_high_demand_past.empty
 
                 # [최종 발주량 계산] 점장님 맞춤 공식
                 if is_special:
-                    # 🔥 인기 상품: (AI예측치 * 1.2배) + 기본 15개 - 현재고
-                    # 소수점은 확실하게 반올림(round) 후 정수(int)로 변환
-                    total_target = (pred_sales * 1.2) + 15
-                    suggest_qty = int(round(total_target - curr_stock))
+                    # 🔥 인기 상품: 품절 방지를 위해 부족 수량에 15% 여유분 추가!
+                    if pred_sales > curr_stock:
+                        shortage = pred_sales - curr_stock
+                        suggest_qty = int(round(shortage * 1.15))
+                    else:
+                        suggest_qty = 0
                     special_count += 1
                 else:
                     # ✅ 일반 상품: "발주 후 재고가 15개가 되도록" 맞춤
-                    # 15개 - 현재고
                     suggest_qty = 15 - curr_stock
                 
                 # 발주 수량이 마이너스가 되지 않도록 (최소 0개)
@@ -264,13 +402,14 @@ def suggest_orders(db: Session = Depends(database.get_db)):
                     "id": p.id,
                     "name": p.name,
                     "current_stock": curr_stock,
-                    "predicted_sales": round(pred_sales, 1), # 예측치는 참고용으로 소수점 표시
+                    "predicted_sales": int(round(float(pred_sales))), # 소수점 없이 정수로만 표시
                     "suggested_qty": int(suggest_qty),      # 발주량은 무조건 깔끔한 정수
                     "is_special": is_special
                 })
 
-            except Exception:
+            except Exception as e:
                 # 에러 발생 시 안전하게 5개만 제안
+                print(f"🔥 상품 예측 중 예외 발생 ({p.name}): {e}")
                 suggestions.append({
                     "id": p.id, "name": p.name, "current_stock": stock_map.get(p.id, 0),
                     "predicted_sales": 0, "suggested_qty": 5, "is_special": False
@@ -279,7 +418,7 @@ def suggest_orders(db: Session = Depends(database.get_db)):
         # 5. 점장님용 요약 리포트 생성
         summary = f"오늘은 {now.day}일입니다. 내일({tomorrow.day}일) 발주 전략: "
         if special_count > 0:
-            summary += f"작년 인기가 높았던 {special_count}종은 기본 15개에 AI 예측량(+20% 보너스)을 더해 넉넉히 제안했습니다. "
+            summary += f"작년 판매 실적이 우수한 {special_count}종에 대해 품절 방지를 위해 부족 수량의 15% 여유분을 추가 발주합니다. "
         summary += "그 외 품목은 재고 효율을 위해 '발주 후 15개' 유지 원칙을 적용했습니다."
 
         return {

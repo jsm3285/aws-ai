@@ -6,6 +6,8 @@ function AIOrders() {
   const [summary, setSummary] = useState(''); // AI 요약 문구 상태
   const [loading, setLoading] = useState(true);
 
+  const isAdmin = localStorage.getItem('userRole') === 'admin' || localStorage.getItem('role') === 'admin';
+
   // 1. 페이지 접속 시 자동으로 AI 예측 데이터 호출
   useEffect(() => {
     fetchAIRecommendations();
@@ -45,10 +47,14 @@ function AIOrders() {
 
   // 3. 발주 실행 및 DB 저장
   const handleOrderSubmit = async () => {
+    if (!isAdmin) {
+      alert("🚨 발주 권한이 없습니다. 점장 계정으로 로그인해주세요.");
+      return;
+    }
     if (recommendations.length === 0) return;
 
     try {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('token');
       const payload = {
         items: recommendations
           .filter(item => item.suggested_qty > 0)
@@ -158,7 +164,8 @@ function AIOrders() {
                 <div className="flex items-center gap-4 bg-black/40 p-2 rounded-2xl border border-white/10">
                   <button 
                     onClick={() => adjustQty(p.id, -1)} 
-                    className="w-10 h-10 bg-white/5 rounded-xl hover:bg-white/20 text-2xl font-bold transition-colors"
+                    disabled={!isAdmin}
+                    className={`w-10 h-10 rounded-xl text-2xl font-bold transition-colors ${isAdmin ? 'bg-white/5 hover:bg-white/20' : 'opacity-20 cursor-not-allowed text-gray-500'}`}
                   >
                     -
                   </button>
@@ -167,7 +174,8 @@ function AIOrders() {
                   </span>
                   <button 
                     onClick={() => adjustQty(p.id, 1)} 
-                    className="w-10 h-10 bg-indigo-600 rounded-xl hover:bg-indigo-500 text-2xl font-bold shadow-lg shadow-indigo-600/30 transition-all active:scale-90"
+                    disabled={!isAdmin}
+                    className={`w-10 h-10 rounded-xl text-2xl font-bold shadow-lg transition-all ${isAdmin ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30 active:scale-90' : 'opacity-20 cursor-not-allowed text-gray-500'}`}
                   >
                     +
                   </button>
@@ -181,10 +189,11 @@ function AIOrders() {
       <footer className="pt-2">
         <button 
           onClick={handleOrderSubmit}
-          className="w-full h-20 bg-gradient-to-r from-indigo-600 to-purple-600 font-black text-xl rounded-2xl shadow-xl shadow-indigo-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+          disabled={!isAdmin}
+          className={`w-full h-20 font-black text-xl rounded-2xl transition-all flex items-center justify-center gap-3 ${isAdmin ? 'bg-gradient-to-r from-indigo-600 to-purple-600 shadow-xl shadow-indigo-600/20 active:scale-[0.98]' : 'bg-white/10 text-gray-500 cursor-not-allowed border border-white/20'}`}
         >
-          <span className="material-symbols-outlined">shopping_cart_checkout</span>
-          전체 제안 수량으로 발주 확정
+          <span className="material-symbols-outlined">{isAdmin ? 'shopping_cart_checkout' : 'lock'}</span>
+          {isAdmin ? '전체 제안 수량으로 발주 확정' : '발주 권한 없음 (점장 전용)'}
         </button>
       </footer>
     </div>
