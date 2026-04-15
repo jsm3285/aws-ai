@@ -2,31 +2,92 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from datetime import datetime, date
 from .database import SessionLocal, engine
-from .models import Base, Product, SalesHistory, InventoryLots, User
+from .models import Base, Product, SalesHistory, InventoryLots, User, Card
 from passlib.context import CryptContext
 
+# 비밀번호 암호화 설정
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def import_csv_to_db():
-    print("🏃‍♂️판매 히스토리 데이터를 4년치 CSV에서 읽어 기존 DB 구조에 주입합니다...")
+    # ⭐️ [가장 중요] 함수가 시작되자마자 테이블을 싹 지우고 새로 만듭니다.
+    # 이렇게 해야 models.py의 최신 구조(username 등)가 DB에 강제 반영됩니다.
+    print("🧹 기존 테이블 삭제 및 최신 구조로 재생성 중...")
+    Base.metadata.drop_all(bind=engine)   # 1. 꼬여있는 옛날 테이블들 싹 삭제
+    Base.metadata.create_all(bind=engine) # 2. 최신 models.py 기준으로 다시 생성
     
     db = SessionLocal()
     try:
+        # --- [1] 사용자 계정 생성 ---
         print("👤 초기 사용자 계정을 생성 중...")
-        admin_user = User(username="admin", hashed_password=pwd_context.hash("1234"), full_name="점장", role="admin")
+        
+        # 테이블을 새로 만들었으므로 중복 체크(if) 없이 바로 넣습니다.
+        admin_user = User(
+            username="admin",
+            hashed_password=pwd_context.hash("1234"),
+            full_name="점장",
+            role="admin"
+        )
         db.add(admin_user)
-        staff_user = User(username="staff", hashed_password=pwd_context.hash("1234"), full_name="이알바 스탭", role="staff")
+        print("✅ 점장 계정 생성 완료 (ID: admin / PW: 1234)")
+
+        staff_user = User(
+            username="staff",
+            hashed_password=pwd_context.hash("1234"),
+            full_name="이알바 스탭",
+            role="staff"
+        )
         db.add(staff_user)
+        print("✅ 알바생 계정 생성 완료 (ID: staff / PW: 1234)")
+        
         db.commit()
-        print("✅ 초기 계정 생성 완료")
 
-        file_name = 'convenience_store_real_products_4years.csv'
+        # --- [1-1] 카드 테이블 초기 데이터 생성 ---
+        print("💳 카드 테이블(cards) 초기 데이터를 생성 중...")
+        db.add(Card(
+            username="admin",
+            card_holder_name="점장",
+            card_number="1111222233334444",
+            expiry_4digits="1228",
+            cvc_3digits="123",
+            pin_first_2digits="12",
+            billing_address="서울시 강남구 테헤란로 123",
+            postal_code="06142",
+            phone_number="01012345678"
+        ))
+        db.add(Card(
+            username="staff",
+            card_holder_name="이알바 스탭",
+            card_number="5555666677778888",
+            expiry_4digits="1127",
+            cvc_3digits="456",
+            pin_first_2digits="34",
+            billing_address="서울시 송파구 올림픽로 35",
+            postal_code="05510",
+            phone_number="01098765432"
+        ))
+        db.commit()
+        print("✅ 카드 테이블 초기 데이터 생성 완료")
+
+        # --- [2] CSV 데이터 로드 ---
+        file_name = 'convenience_store_real_products_365days.csv'
         df = pd.read_csv(file_name)
-        print(f"📊 총 {len(df)}행의 4년치 판매 데이터를 읽어왔습니다.")
+        print(f"📊 총 {len(df)}행의 데이터를 읽어왔습니다.")
 
-        # 상품 등록(Product) 과정은 import_products.py가 이미 수행했으므로 삭제.
+        # --- [3] 상품 마스터(Product) 등록 ---
+        print("📦 상품 마스터 정보를 등록 중...")
+        unique_products = df[['상품ID', '카테고리', '상품명', '단가']].drop_duplicates()
+        for _, row in unique_products.iterrows():
+            product = Product(
+                id=row['상품ID'],
+                category=row['카테고리'],
+                name=row['상품명'],
+                price=row['단가']
+            )
+            db.add(product)
+        db.commit()
 
-        print("📈 판매 및 발주 이력을 4년치 분량 등록 중...")
+        # --- [4] 판매 이력(SalesHistory) 등록 ---
+        print("📈 판매 및 발주 이력을 등록 중...")
         history_list = []
         for _, row in df.iterrows():
             history = SalesHistory(
@@ -51,7 +112,8 @@ def import_csv_to_db():
             db.bulk_save_objects(history_list)
             db.commit()
 
-        print("🔋 실시간 재고(최종일자 기준) 데이터를 설정 중...")
+        # --- [5] 실시간 재고(InventoryLots) 설정 ---
+        print("🔋 실시간 재고 데이터를 설정 중...")
         last_date = df['날짜'].max()
         last_day_df = df[df['날짜'] == last_date]
         
@@ -66,7 +128,7 @@ def import_csv_to_db():
                 db.add(lot)
         
         db.commit()
-        print("✨ 4년치 이력 데이터 주입이 완료되었습니다!")
+        print("✨ 모든 데이터와 계정 세팅이 완료되었습니다!")
 
     except Exception as e:
         db.rollback()
