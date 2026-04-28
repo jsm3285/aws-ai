@@ -69,7 +69,7 @@ def import_csv_to_db():
         print("✅ 카드 테이블 초기 데이터 생성 완료")
 
         # --- [2] CSV 데이터 로드 ---
-        file_name = 'convenience_store_real_products_365days.csv'
+        file_name = 'convenience_store_real_products_4years.csv'
         df = pd.read_csv(file_name)
         print(f"📊 총 {len(df)}행의 데이터를 읽어왔습니다.")
 

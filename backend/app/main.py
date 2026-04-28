@@ -253,6 +253,34 @@ def sell_product(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     today = date_type.today()
+    
+    # 1. 실제 물리 재고(InventoryLots)에서 수량 차감
+    remaining_to_sell = item.quantity
+    
+    # 유통기한이 임박한 순서대로 재고 묶음을 가져옴
+    lots = db.query(models.InventoryLots).filter(
+        models.InventoryLots.product_id == item.product_id,
+        models.InventoryLots.quantity > 0
+    ).order_by(models.InventoryLots.expiration_date.asc()).all()
+
+    # 총 재고 확인
+    total_available = sum(lot.quantity for lot in lots)
+    if total_available < item.quantity:
+        raise HTTPException(status_code=400, detail=f"재고가 부족합니다. (현재: {total_available}개)")
+
+    # 유통기한 순으로 수량 차감 실행
+    for lot in lots:
+        if remaining_to_sell <= 0:
+            break
+        
+        if lot.quantity >= remaining_to_sell:
+            lot.quantity -= remaining_to_sell
+            remaining_to_sell = 0
+        else:
+            remaining_to_sell -= lot.quantity
+            lot.quantity = 0
+
+    # 2. 판매 이력(SalesHistory) 업데이트 (기존 통계용 로직)
     history = db.query(models.SalesHistory).filter(
         models.SalesHistory.product_id == item.product_id, 
         models.SalesHistory.date == today
@@ -273,6 +301,7 @@ def sell_product(
             sales_qty=item.quantity,
             unit_price=last_rec.unit_price if last_rec else 3000
         ))
+    
     db.commit()
     return {"status": "success"}
 
