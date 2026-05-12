@@ -18,7 +18,7 @@ app = FastAPI(title="Nexus Core API v3.5 - Kinetic Auth")
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5174", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,6 +52,10 @@ class RegisterRequest(BaseModel):
     password: str
     full_name: str
     role: str = "staff"
+
+class UserUpdate(BaseModel):
+    full_name: str
+    password: Optional[str] = None
 
 class CardUpsertRequest(BaseModel):
     card_holder_name: Optional[str] = None
@@ -90,8 +94,28 @@ def get_my_profile(current_user: models.User = Depends(auth.get_current_user)):
         "role": current_user.role
     }
 
+@app.put("/api/users/me")
+def update_my_profile(
+    payload: UserUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if not payload.full_name.strip():
+        raise HTTPException(status_code=400, detail="이름은 비워둘 수 없습니다.")
+    
+    current_user.full_name = payload.full_name.strip()
+    if payload.password and payload.password.strip():
+        current_user.hashed_password = auth.get_password_hash(payload.password)
+        
+    db.commit()
+    return {"status": "success", "message": "프로필 업데이트 성공"}
+
 @app.post("/api/register")
-def register_user(payload: RegisterRequest, db: Session = Depends(database.get_db)):
+def register_user(
+    payload: RegisterRequest, 
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(auth.get_current_admin_user)
+):
     username = payload.username.strip()
     full_name = payload.full_name.strip()
     role = payload.role.strip().lower()
@@ -115,7 +139,7 @@ def register_user(payload: RegisterRequest, db: Session = Depends(database.get_d
     db.add(new_user)
     db.commit()
 
-    return {"status": "success", "message": "회원가입이 완료되었습니다."}
+    return {"status": "success", "message": f"{admin.full_name} 점장님, 새 직원이 등록되었습니다."}
 
 @app.get("/api/cards/me")
 def get_my_card(

@@ -43,7 +43,7 @@ function ScanRegister() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:8000/api/inventory/register', formData);
+      const res = await axios.post('http://localhost:8001/api/inventory/register', formData);
       if (res.data.status === "success") {
         alert(res.data.message);
         const now = new Date();

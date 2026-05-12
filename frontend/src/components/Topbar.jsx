@@ -15,14 +15,20 @@ function Topbar() {
     confirmPassword: '',
   });
   const [paymentForm, setPaymentForm] = useState({
-    cardHolder: 'Cho Seungmin',
+    cardHolder: '',
     cardNumber: '',
     expiryDate: '',
     cvc: '',
     pinPrefix: '',
-    billingAddress: '서울시 강남구 테헤란로 123',
+    billingAddress: '',
     postalCode: '',
     phoneNumber: '',
+  });
+  const [staffForm, setStaffForm] = useState({
+    userId: '',
+    fullName: '',
+    password: '',
+    role: 'staff',
   });
   const [isCardLoading, setIsCardLoading] = useState(false);
   const profileMenuRef = useRef(null);
@@ -35,7 +41,7 @@ function Topbar() {
       if (!token) return;
 
       try {
-        const response = await axios.get('http://localhost:8000/api/users/me', {
+        const response = await axios.get('http://localhost:8001/api/users/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const profile = response.data;
@@ -82,20 +88,76 @@ function Topbar() {
     setPaymentForm((prev) => ({ ...prev, [name]: nextValue }));
   };
 
-  const handleAccountSave = (event) => {
+  const handleStaffFieldChange = (event) => {
+    const { name, value } = event.target;
+    setStaffForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAccountSave = async (event) => {
     event.preventDefault();
     if (accountForm.password && accountForm.password !== accountForm.confirmPassword) {
       alert('비밀번호와 비밀번호 확인 값이 다릅니다.');
       return;
     }
-    alert('계정 관리 정보가 저장되었습니다.');
-    setActivePanel('');
-    setIsProfileMenuOpen(false);
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    try {
+      await axios.put(
+        'http://localhost:8001/api/users/me',
+        {
+          full_name: accountForm.name,
+          password: accountForm.password || null,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      alert('계정 관리 정보가 성공적으로 저장되었습니다.');
+      localStorage.setItem('userName', accountForm.name);
+      setActivePanel('');
+      setIsProfileMenuOpen(false);
+    } catch (error) {
+      const detail = error.response?.data?.detail;
+      alert(typeof detail === 'string' ? detail : '계정 정보 저장 중 오류가 발생했습니다.');
+    }
   };
 
   const handlePaymentSave = (event) => {
     event.preventDefault();
     saveCardToServer();
+  };
+
+  const handleStaffSave = async (event) => {
+    event.preventDefault();
+    if (!staffForm.userId || !staffForm.fullName || !staffForm.password) {
+      alert("아이디, 이름, 비밀번호를 모두 입력해주세요.");
+      return;
+    }
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      await axios.post(
+        'http://localhost:8001/api/register',
+        {
+          username: staffForm.userId,
+          full_name: staffForm.fullName,
+          password: staffForm.password,
+          role: staffForm.role
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert(`${staffForm.fullName} 직원이 성공적으로 등록되었습니다.`);
+      setStaffForm({ userId: '', fullName: '', password: '', role: 'staff' });
+      setActivePanel('');
+    } catch (error) {
+      const detail = error.response?.data?.detail;
+      alert(typeof detail === 'string' ? detail : '직원 등록 중 오류가 발생했습니다.');
+    }
   };
 
   const saveCardToServer = async () => {
@@ -131,7 +193,7 @@ function Topbar() {
 
     try {
       await axios.put(
-        'http://localhost:8000/api/cards/me',
+        'http://localhost:8001/api/cards/me',
         {
           card_holder_name: cardHolder || null,
           card_number: cardNumber.length === 16 ? cardNumber : null,
@@ -155,7 +217,6 @@ function Topbar() {
   };
 
   const handleProfileButtonClick = () => {
-    if (!isAdmin) return;
     setIsProfileMenuOpen((prev) => !prev);
   };
 
@@ -173,7 +234,7 @@ function Topbar() {
 
       setIsCardLoading(true);
       try {
-        const response = await axios.get('http://localhost:8000/api/cards/me', {
+        const response = await axios.get('http://localhost:8001/api/cards/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const card = response.data;
@@ -233,8 +294,8 @@ function Topbar() {
           <div ref={profileMenuRef} className="relative flex items-center gap-3 pl-4 border-l border-white/10">
             <button
               onClick={handleProfileButtonClick}
-              className={`flex items-center gap-3 ${isAdmin ? '' : 'opacity-60 cursor-not-allowed'}`}
-              title={isAdmin ? '프로필 메뉴 열기' : '점장 계정에서만 사용 가능합니다.'}
+              className="flex items-center gap-3 transition-opacity hover:opacity-80"
+              title="프로필 메뉴 열기"
             >
               <div className="text-right">
                 <p className="text-xs font-bold text-on-surface">{accountForm.name}</p>
@@ -247,7 +308,7 @@ function Topbar() {
               </div>
             </button>
 
-            {isAdmin && isProfileMenuOpen && (
+            {isProfileMenuOpen && (
               <div className="absolute right-0 top-14 z-[70] w-72 rounded-2xl border border-white/10 bg-[#101621] shadow-2xl overflow-hidden">
                 <button
                   onClick={() => {
@@ -262,26 +323,30 @@ function Topbar() {
                   </span>
                   <span className="material-symbols-outlined text-base text-gray-500">chevron_right</span>
                 </button>
-                <button
-                  onClick={() => {
-                    setActivePanel('payment');
-                    setIsProfileMenuOpen(false);
-                  }}
-                  className="w-full px-4 py-3 text-left text-sm flex items-center justify-between text-gray-200 hover:bg-white/5 transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-base">credit_card</span>
-                    결제수단
-                  </span>
-                  <span className="material-symbols-outlined text-base text-gray-500">chevron_right</span>
-                </button>
+                {isAdmin && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setActivePanel('payment');
+                        setIsProfileMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center justify-between text-gray-200 hover:bg-white/5 transition-colors border-t border-white/5"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base">credit_card</span>
+                        결제수단
+                      </span>
+                      <span className="material-symbols-outlined text-base text-gray-500">chevron_right</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
         </div>
       </header>
 
-      {isAdmin && activePanel && (
+      {activePanel && (
         <div className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm px-4 py-8 sm:px-6">
           <div className="h-full w-full overflow-y-auto">
             <div className="mx-auto flex min-h-full max-w-2xl items-center justify-center">
@@ -290,10 +355,10 @@ function Topbar() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary/80">
-                        {activePanel === 'account' ? 'Profile Settings' : 'Payment Settings'}
+                        {activePanel === 'account' ? 'Profile & Staff Settings' : 'Payment Settings'}
                       </p>
                       <h2 className="mt-2 text-2xl font-black text-white">
-                        {activePanel === 'account' ? '계정 관리' : '결제수단 관리'}
+                        {activePanel === 'account' ? '계정 및 직원 관리' : '결제수단 관리'}
                       </h2>
                     </div>
                     <button type="button" onClick={closePanels} className="rounded-xl border border-white/10 p-2 text-gray-400 transition-colors hover:bg-white/5 hover:text-white">
@@ -302,7 +367,8 @@ function Topbar() {
                   </div>
                 </div>
 
-                {activePanel === 'account' ? (
+                {activePanel === 'account' && (
+                  <>
                   <form onSubmit={handleAccountSave} className="px-6 py-6 sm:px-8">
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -350,7 +416,55 @@ function Topbar() {
                       </button>
                     </div>
                   </form>
-                ) : (
+
+                  {isAdmin && (
+                    <div className="border-t border-white/10 bg-[#0a0e14]/50 px-6 py-8 sm:px-8 mt-2 shadow-inner">
+                      <div className="mb-6">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-500/80">Staff Management</p>
+                        <h3 className="mt-1 text-xl font-bold text-white">직원 계정 임의 추가 (점장 전용)</h3>
+                      </div>
+                      <form onSubmit={handleStaffSave}>
+                        <div className="space-y-6">
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">직원 이름</label>
+                            <input name="fullName" value={staffForm.fullName} onChange={handleStaffFieldChange} placeholder="예: 김알바" className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
+                          </div>
+                          
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">아이디</label>
+                              <input name="userId" value={staffForm.userId} onChange={handleStaffFieldChange} placeholder="로그인 아이디" className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" autoComplete="new-password" />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">초기 비밀번호</label>
+                              <input name="password" type="password" value={staffForm.password} onChange={handleStaffFieldChange} placeholder="비밀번호" className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" autoComplete="new-password" />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">직급 권한</label>
+                            <select name="role" value={staffForm.role} onChange={handleStaffFieldChange} className="h-12 w-full rounded-2xl bg-[#101621] border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40">
+                              <option value="staff">일반 직원 (결제 불가)</option>
+                              <option value="admin">점장 (모든 권한)</option>
+                            </select>
+                          </div>
+                          
+                          <div className="rounded-2xl border border-dashed border-white/10 bg-emerald-500/10 p-4 text-sm text-emerald-400">
+                            계정 관리 패널 내에서 점장 권한으로 새로운 직원을 직접 시스템에 등록합니다.
+                          </div>
+                        </div>
+
+                        <div className="mt-8 flex justify-end">
+                          <button type="submit" className="h-12 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-700 font-bold px-6 text-sm text-white shadow-lg transition-transform hover:scale-105 active:scale-95">
+                            계정 만들기
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+                  </>
+                )}
+                {activePanel === 'payment' && (
                   <form onSubmit={handlePaymentSave} className="px-6 py-6 sm:px-8">
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -411,6 +525,8 @@ function Topbar() {
                     </div>
                   </form>
                 )}
+
+
               </div>
             </div>
           </div>

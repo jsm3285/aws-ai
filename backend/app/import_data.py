@@ -54,36 +54,29 @@ def import_csv_to_db():
             postal_code="06142",
             phone_number="01012345678"
         ))
-        db.add(Card(
-            username="staff",
-            card_holder_name="이알바 스탭",
-            card_number="5555666677778888",
-            expiry_4digits="1127",
-            cvc_3digits="456",
-            pin_first_2digits="34",
-            billing_address="서울시 송파구 올림픽로 35",
-            postal_code="05510",
-            phone_number="01098765432"
-        ))
         db.commit()
         print("✅ 카드 테이블 초기 데이터 생성 완료")
 
         # --- [2] CSV 데이터 로드 ---
-        file_name = 'convenience_store_real_products_365days.csv'
+        file_name = 'convenience_store_real_products_4years.csv'
         df = pd.read_csv(file_name)
         print(f"📊 총 {len(df)}행의 데이터를 읽어왔습니다.")
 
         # --- [3] 상품 마스터(Product) 등록 ---
         print("📦 상품 마스터 정보를 등록 중...")
-        unique_products = df[['상품ID', '카테고리', '상품명', '단가']].drop_duplicates()
-        for _, row in unique_products.iterrows():
-            product = Product(
-                id=row['상품ID'],
-                category=row['카테고리'],
-                name=row['상품명'],
-                price=row['단가']
-            )
-            db.add(product)
+        product_file_path = '편의점 상품 데이터 Sheets 내보내기 - 편의점 상품 데이터 Sheets 내보내기.csv'
+        prod_df = pd.read_csv(product_file_path)
+        print(f"📦 총 {len(prod_df)}개의 마스터 상품 정보를 읽었습니다.")
+        for _, row in prod_df.iterrows():
+            exists = db.query(Product).filter(Product.id == str(row['상품ID'])).first()
+            if not exists:
+                new_product = Product(
+                    id=str(row['상품ID']),
+                    category=row['카테고리'],
+                    name=row['상품명'],
+                    price=int(row['단가(원)'])
+                )
+                db.add(new_product)
         db.commit()
 
         # --- [4] 판매 이력(SalesHistory) 등록 ---

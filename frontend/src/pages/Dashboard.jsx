@@ -17,7 +17,7 @@ function Dashboard() {
   // ⭐️ 데이터 불러오기 (토큰 인증 포함)
   const fetchData = async () => {
     const token = localStorage.getItem('token');
-    
+
     // 토큰 없으면 로그인창으로 강제 이동
     if (!token) {
       navigate('/');
@@ -30,10 +30,10 @@ function Dashboard() {
       };
 
       const [invRes, statsRes] = await Promise.all([
-        axios.get('http://localhost:8000/api/dashboard/inventory', config),
-        axios.get('http://localhost:8000/api/dashboard/stats', config)
+        axios.get('http://localhost:8001/api/dashboard/inventory', config),
+        axios.get('http://localhost:8001/api/dashboard/stats', config)
       ]);
-      
+
       setInventoryData(invRes.data);
       setStats(statsRes.data);
     } catch (err) {
@@ -60,7 +60,7 @@ function Dashboard() {
     const token = localStorage.getItem('token');
 
     try {
-      await axios.post('http://localhost:8000/api/dashboard/sell', 
+      await axios.post('http://localhost:8001/api/dashboard/sell',
         { product_id: id, quantity: parseInt(qty) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -70,8 +70,8 @@ function Dashboard() {
     }
   };
 
-  const filteredData = inventoryData.filter(item => 
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredData = inventoryData.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -114,9 +114,9 @@ function Dashboard() {
           </div>
           <div className="relative group">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors">search</span>
-            <input 
-              type="text" 
-              placeholder="품목명, 코드, 카테고리 검색..." 
+            <input
+              type="text"
+              placeholder="품목명, 코드, 카테고리 검색..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-3 text-sm text-white outline-none w-80 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all"
@@ -158,8 +158,8 @@ function Dashboard() {
                       </div>
                     </td>
                     <td className="px-8 py-6 text-center">
-                      <button 
-                        onClick={() => handleSell(item.id, item.name)} 
+                      <button
+                        onClick={() => handleSell(item.id, item.name)}
                         className="group/btn relative px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl text-[10px] font-black hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-2 mx-auto"
                       >
                         <span className="material-symbols-outlined text-sm">remove_shopping_cart</span>
