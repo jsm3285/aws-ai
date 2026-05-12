@@ -8,15 +8,24 @@ from passlib.context import CryptContext
 # 비밀번호 암호화 설정
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def import_csv_to_db():
-    # ⭐️ [가장 중요] 함수가 시작되자마자 테이블을 싹 지우고 새로 만듭니다.
-    # 이렇게 해야 models.py의 최신 구조(username 등)가 DB에 강제 반영됩니다.
-    print("🧹 기존 테이블 삭제 및 최신 구조로 재생성 중...")
-    Base.metadata.drop_all(bind=engine)   # 1. 꼬여있는 옛날 테이블들 싹 삭제
-    Base.metadata.create_all(bind=engine) # 2. 최신 models.py 기준으로 다시 생성
-    
+def import_csv_to_db(force_reset=False):
     db = SessionLocal()
     try:
+        # 이미 데이터가 들어있는지 확인 (관리자 계정 존재 여부로 판단)
+        if not force_reset:
+            Base.metadata.create_all(bind=engine) # 테이블이 아예 없을 수도 있으니 생성 시도
+            existing_user = db.query(User).first()
+            if existing_user:
+                print("⚡ [Auto-Seeding] 데이터가 이미 존재하여 초기 세팅을 건너뜁니다.")
+                return
+
+        # ⭐️ [가장 중요] 함수가 시작되자마자 테이블을 싹 지우고 새로 만듭니다.
+        # 이렇게 해야 models.py의 최신 구조(username 등)가 DB에 강제 반영됩니다.
+        print("🧹 기존 테이블 삭제 및 최신 구조로 재생성 중...")
+        Base.metadata.drop_all(bind=engine)   # 1. 꼬여있는 옛날 테이블들 싹 삭제
+        Base.metadata.create_all(bind=engine) # 2. 최신 models.py 기준으로 다시 생성
+
+
         # --- [1] 사용자 계정 생성 ---
         print("👤 초기 사용자 계정을 생성 중...")
         

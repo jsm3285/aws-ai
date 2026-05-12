@@ -18,14 +18,19 @@ app = FastAPI(title="Nexus Core API v3.5 - Kinetic Auth")
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5174", "http://127.0.0.1:5173" , "http//localhost:80"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 서버 시작 시 DB 테이블 생성
+# 서버 시작 시 DB 테이블 생성 및 초기 데이터 주입
 models.Base.metadata.create_all(bind=database.engine)
+try:
+    from .import_data import import_csv_to_db
+    import_csv_to_db(force_reset=False)
+except Exception as e:
+    print(f"🔥 초기 데이터 세팅 중 오류 발생 (무시하고 계속 진행): {e}")
 
 # --- 데이터 규격(Schema) ---
 class ProductRegister(BaseModel):

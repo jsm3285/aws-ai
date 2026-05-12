@@ -36,7 +36,8 @@ function Login() {
       params.append('username', formData.userId);
       params.append('password', formData.password);
 
-      const response = await axios.post('http://localhost:8001/api/login', params, {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+      const response = await axios.post(`${API_BASE_URL}/api/login`, params, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
 

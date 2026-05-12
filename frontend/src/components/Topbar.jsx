@@ -41,7 +41,8 @@ function Topbar() {
       if (!token) return;
 
       try {
-        const response = await axios.get('http://localhost:8001/api/users/me', {
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+        const response = await axios.get(`${API_BASE_URL}/api/users/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const profile = response.data;
@@ -108,7 +109,7 @@ function Topbar() {
 
     try {
       await axios.put(
-        'http://localhost:8001/api/users/me',
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/users/me`,
         {
           full_name: accountForm.name,
           password: accountForm.password || null,
@@ -142,7 +143,7 @@ function Topbar() {
 
     try {
       await axios.post(
-        'http://localhost:8001/api/register',
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/register`,
         {
           username: staffForm.userId,
           full_name: staffForm.fullName,
@@ -193,7 +194,7 @@ function Topbar() {
 
     try {
       await axios.put(
-        'http://localhost:8001/api/cards/me',
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/cards/me`,
         {
           card_holder_name: cardHolder || null,
           card_number: cardNumber.length === 16 ? cardNumber : null,
@@ -234,7 +235,8 @@ function Topbar() {
 
       setIsCardLoading(true);
       try {
-        const response = await axios.get('http://localhost:8001/api/cards/me', {
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+        const response = await axios.get(`${API_BASE_URL}/api/cards/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const card = response.data;
