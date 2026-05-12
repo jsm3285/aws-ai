@@ -15,6 +15,11 @@ services:
       - mysql-db-prod-volume:/var/lib/mysql
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -26,7 +31,8 @@ services:
     ports:
       - "8001:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - app-network
     environment:
@@ -49,7 +55,8 @@ services:
     ports:
       - "80:80" # Nginx는 기본 80포트를 사용
     depends_on:
-      - backend
+      backend:
+        condition: service_started
     networks:
       - app-network
     # 운영 환경에서는 Volumes로 로컬 소스 코드를 마운트하지 않습니다.

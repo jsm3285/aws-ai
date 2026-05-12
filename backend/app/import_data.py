@@ -18,6 +18,7 @@ def import_csv_to_db(force_reset=False):
             if existing_user:
                 print("⚡ [Auto-Seeding] 데이터가 이미 존재하여 초기 세팅을 건너뜁니다.")
                 return
+            db.commit() # 트랜잭션 종료하여 metadata lock 해제
 
         # ⭐️ [가장 중요] 함수가 시작되자마자 테이블을 싹 지우고 새로 만듭니다.
         # 이렇게 해야 models.py의 최신 구조(username 등)가 DB에 강제 반영됩니다.
