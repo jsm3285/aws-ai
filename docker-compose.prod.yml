@@ -1,0 +1,62 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql-db-prod
+    restart: always
+    environment:
+      TZ: "Asia/Seoul"
+      MYSQL_ROOT_PASSWORD: "root_password"
+      MYSQL_DATABASE: "my_database"
+      MYSQL_INITCONF: "--default-time-zone=+09:00"
+    ports:
+      - "3306:3306"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - mysql-db-prod-volume:/var/lib/mysql
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    image: jsm3285/prj_all:backend
+    container_name: fastapi-backend-prod
+    restart: always
+    ports:
+      - "8001:8000"
+    depends_on:
+      - db
+    networks:
+      - app-network
+    environment:
+      TZ: "Asia/Seoul"
+      DATABASE_URL: "mysql+pymysql://root:root_password@db:3306/my_database"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        # 빌드 시점에 AWS IP/도메인을 넘겨줄 수 있습니다.
+        # 기본값으로 localhost:8001을 사용하지만 배포 시 오버라이드 가능
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8001}
+    image: jsm3285/prj_all:frontend
+    container_name: react-frontend-prod
+    restart: always
+    ports:
+      - "80:80" # Nginx는 기본 80포트를 사용
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    # 운영 환경에서는 Volumes로 로컬 소스 코드를 마운트하지 않습니다.
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql-db-prod-volume:

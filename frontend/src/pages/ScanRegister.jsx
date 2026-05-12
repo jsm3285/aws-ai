@@ -43,7 +43,8 @@ function ScanRegister() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:8001/api/inventory/register', formData);
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+      const res = await axios.post(`${API_BASE_URL}/api/inventory/register`, formData);
       if (res.data.status === "success") {
         alert(res.data.message);
         const now = new Date();

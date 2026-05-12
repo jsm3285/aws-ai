@@ -29,9 +29,10 @@ function Dashboard() {
         headers: { Authorization: `Bearer ${token}` }
       };
 
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
       const [invRes, statsRes] = await Promise.all([
-        axios.get('http://localhost:8001/api/dashboard/inventory', config),
-        axios.get('http://localhost:8001/api/dashboard/stats', config)
+        axios.get(`${API_BASE_URL}/api/dashboard/inventory`, config),
+        axios.get(`${API_BASE_URL}/api/dashboard/stats`, config)
       ]);
 
       setInventoryData(invRes.data);
@@ -60,7 +61,8 @@ function Dashboard() {
     const token = localStorage.getItem('token');
 
     try {
-      await axios.post('http://localhost:8001/api/dashboard/sell',
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+      await axios.post(`${API_BASE_URL}/api/dashboard/sell`,
         { product_id: id, quantity: parseInt(qty) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
