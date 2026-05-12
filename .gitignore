@@ -17,3 +17,6 @@ frontend/dist/
 frontend/build/backend/app/ai_model.joblib
 *.joblib
 *.joblib
+
+__pycache__/
+*.pyc
