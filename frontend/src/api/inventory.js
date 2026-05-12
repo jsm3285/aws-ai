@@ -1,7 +1,7 @@
 // frontend/src/api/inventory.js
 import axios from 'axios';
 
-const API_URL = "http://localhost:8000";
+const API_URL = "http://localhost:8001";
 
 export const getAIRecommendations = async () => {
   // AI 발주 제안 페이지(code.html)에서 사용할 데이터를 가져옵니다.

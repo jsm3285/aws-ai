@@ -16,7 +16,7 @@ function AIOrders() {
   const fetchAIRecommendations = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('http://localhost:8000/api/ai/suggest-orders');
+      const response = await axios.get('http://localhost:8001/api/ai/suggest-orders');
       
       // 백엔드 구조 변경에 맞춰 데이터 분리 저장
       setSummary(response.data.summary);
@@ -65,7 +65,7 @@ function AIOrders() {
       };
 
       // 백엔드 DB 저장 API 호출
-      await axios.post('http://localhost:8000/api/orders/submit', payload, {
+      await axios.post('http://localhost:8001/api/orders/submit', payload, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
