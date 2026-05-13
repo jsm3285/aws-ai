@@ -44,7 +44,6 @@ class SalesRequest(BaseModel):
     product_id: str
     quantity: int
 
-# 발주 저장을 위한 새로운 스키마
 class OrderItem(BaseModel):
     product_id: str
     suggested_qty: int
@@ -175,6 +174,20 @@ def get_my_card(
         "phone_number": card.phone_number
     }
 
+# --- [수정 추가] 결제 수단 존재 확인 API (main.py 내부에 위치) ---
+@app.get("/api/payments/check-card")
+def check_card_exists(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    card = db.query(models.Card).filter(models.Card.username == current_user.username).first()
+    if card and card.card_number:
+        return {
+            "hasCard": True,
+            "card_number": card.card_number  # 프론트에서 뒷자리 표시를 위해 사용
+        }
+    return {"hasCard": False}
+
 @app.put("/api/cards/me")
 def upsert_my_card(
     payload: CardUpsertRequest,
@@ -282,26 +295,19 @@ def sell_product(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     today = date_type.today()
-    
-    # 1. 실제 물리 재고(InventoryLots)에서 수량 차감
     remaining_to_sell = item.quantity
-    
-    # 유통기한이 임박한 순서대로 재고 묶음을 가져옴
     lots = db.query(models.InventoryLots).filter(
         models.InventoryLots.product_id == item.product_id,
         models.InventoryLots.quantity > 0
     ).order_by(models.InventoryLots.expiration_date.asc()).all()
 
-    # 총 재고 확인
     total_available = sum(lot.quantity for lot in lots)
     if total_available < item.quantity:
         raise HTTPException(status_code=400, detail=f"재고가 부족합니다. (현재: {total_available}개)")
 
-    # 유통기한 순으로 수량 차감 실행
     for lot in lots:
         if remaining_to_sell <= 0:
             break
-        
         if lot.quantity >= remaining_to_sell:
             lot.quantity -= remaining_to_sell
             remaining_to_sell = 0
@@ -309,7 +315,6 @@ def sell_product(
             remaining_to_sell -= lot.quantity
             lot.quantity = 0
 
-    # 2. 판매 이력(SalesHistory) 업데이트 (기존 통계용 로직)
     history = db.query(models.SalesHistory).filter(
         models.SalesHistory.product_id == item.product_id, 
         models.SalesHistory.date == today
@@ -340,9 +345,6 @@ def get_real_inventory(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    from sqlalchemy import func
-    
-    # 1. 실제 물리 재고(InventoryLots) 확인합산
     lots = db.query(
         models.InventoryLots.product_id, 
         func.sum(models.InventoryLots.quantity).label("total")
@@ -354,7 +356,6 @@ def get_real_inventory(
 
     for p in products:
         remains = stock_map.get(p.id, 0)
-
         inventory_list.append({
             "id": p.id,
             "name": p.name,
@@ -362,7 +363,6 @@ def get_real_inventory(
             "stock": remains,
             "status": "NORMAL" if remains >= 10 else ("WARNING" if remains > 0 else "OUT_OF_STOCK")
         })
-        
     return inventory_list
 
 # --- [기능 4] 대시보드 통계 ---
@@ -384,31 +384,24 @@ def get_dashboard_stats(
         "categories_count": len(set(item["category"] for item in inventory))
     }
 
-# --- [기능 5] AI 발주 제안 (페이지 접속 시 자동 호출) ---
+# --- [기능 5] AI 발주 제안 ---
 @app.get("/api/ai/suggest-orders")
 def suggest_orders(db: Session = Depends(database.get_db)):
     try:
-        # 1. 날짜 및 기초 데이터 설정
         now = datetime.now()
         tomorrow = now + timedelta(days=1)
-        
-        # 상품 목록 및 현재고 가져오기
         products = db.query(models.Product).all()
         inventory = get_real_inventory(db, current_user=None) 
         stock_map = {item["id"]: item["stock"] for item in inventory}
 
-        # 2. 작년 데이터(CSV) 로드 - A열 날짜 기준 분석용
-        csv_path = '/app/convenience_store_real_products_4years.csv'
+        csv_path = 'convenience_store_real_products_4years.csv'
         df_csv = pd.read_csv(csv_path)
-        # 컬럼명 강제 지정 제거
-        # df_csv.columns = ['날짜','코드','카테고리','상품명','가격','재고','입고','판매량','유통기한']
         df_csv['날짜'] = pd.to_datetime(df_csv['날짜'])
         df_csv['판매량'] = pd.to_numeric(df_csv['판매량'], errors='coerce').fillna(0)
 
-        # 3. 학습된 AI 모델 불러오기
         model_path = "/app/app/ai_model.joblib"
         if not os.path.exists(model_path):
-            return {"summary": "AI 모델 파일이 없습니다. 먼저 학습을 진행해주세요.", "suggestions": []}
+            return {"summary": "AI 모델 파일이 없습니다.", "suggestions": []}
             
         data = joblib.load(model_path)
         model = data['model']
@@ -417,21 +410,16 @@ def suggest_orders(db: Session = Depends(database.get_db)):
         suggestions = []
         special_count = 0
 
-        # 4. 상품별 발주량 계산 루프
         for p in products:
             try:
-                # [AI 예측] 내일 얼마나 팔릴까?
                 c_id = le_cat.transform([p.category])[0]
                 n_id = le_name.transform([p.name])[0]
                 is_weekend = 1 if tomorrow.weekday() >= 5 else 0
-                # 날씨나 행사 여부는 임의값(맑음=0.0, 행사없음=0)으로 우선 설정
                 test_input = pd.DataFrame([[tomorrow.month, tomorrow.weekday(), is_weekend, c_id, n_id, 0.0, 0]], 
                                         columns=['month', 'day_of_week', 'is_weekend', 'cat_id', 'name_id', 'precipitation', 'is_promotion'])
-                # AI가 예상한 순수 판매량 (예: 5.4개)
                 pred_sales = model.predict(test_input)[0] 
                 curr_stock = stock_map.get(p.id, 0)
 
-                # [인기 상품 판단] 과거 동일 날짜(월/일)에 20개 이상 팔린 기록이 있는가? (기존 10개는 너무 낮아 100종 전체가 핫트렌드가 됨)
                 is_high_demand_past = df_csv[
                     (df_csv['상품명'].str.strip() == p.name.strip()) & 
                     (df_csv['날짜'].dt.month == tomorrow.month) & 
@@ -440,9 +428,7 @@ def suggest_orders(db: Session = Depends(database.get_db)):
                 ]
                 is_special = not is_high_demand_past.empty
 
-                # [최종 발주량 계산] 점장님 맞춤 공식
                 if is_special:
-                    # 🔥 인기 상품: 품절 방지를 위해 부족 수량에 15% 여유분 추가!
                     if pred_sales > curr_stock:
                         shortage = pred_sales - curr_stock
                         suggest_qty = int(round(shortage * 1.15))
@@ -450,45 +436,30 @@ def suggest_orders(db: Session = Depends(database.get_db)):
                         suggest_qty = 0
                     special_count += 1
                 else:
-                    # ✅ 일반 상품: "발주 후 재고가 15개가 되도록" 맞춤
                     suggest_qty = 15 - curr_stock
                 
-                # 발주 수량이 마이너스가 되지 않도록 (최소 0개)
                 suggest_qty = max(0, suggest_qty)
-
                 suggestions.append({
                     "id": p.id,
                     "name": p.name,
                     "current_stock": curr_stock,
-                    "predicted_sales": int(round(float(pred_sales))), # 소수점 없이 정수로만 표시
-                    "suggested_qty": int(suggest_qty),      # 발주량은 무조건 깔끔한 정수
+                    "predicted_sales": int(round(float(pred_sales))),
+                    "suggested_qty": int(suggest_qty),
                     "is_special": is_special
                 })
-
             except Exception as e:
-                # 에러 발생 시 안전하게 5개만 제안
-                print(f"🔥 상품 예측 중 예외 발생 ({p.name}): {e}")
-                suggestions.append({
-                    "id": p.id, "name": p.name, "current_stock": stock_map.get(p.id, 0),
-                    "predicted_sales": 0, "suggested_qty": 5, "is_special": False
-                })
+                suggestions.append({"id": p.id, "name": p.name, "current_stock": stock_map.get(p.id, 0), "predicted_sales": 0, "suggested_qty": 5, "is_special": False})
 
-        # 5. 점장님용 요약 리포트 생성
         summary = f"오늘은 {now.day}일입니다. 내일({tomorrow.day}일) 발주 전략: "
         if special_count > 0:
             summary += f"작년 판매 실적이 우수한 {special_count}종에 대해 품절 방지를 위해 부족 수량의 15% 여유분을 추가 발주합니다. "
         summary += "그 외 품목은 재고 효율을 위해 '발주 후 15개' 유지 원칙을 적용했습니다."
 
-        return {
-            "summary": summary,
-            "suggestions": suggestions
-        }
-
+        return {"summary": summary, "suggestions": suggestions}
     except Exception as e:
-        print(f"🔥 AI 발주 API 오류: {e}")
         return {"summary": "데이터 분석 중 오류가 발생했습니다.", "suggestions": []}
 
-# --- [기능 6] AI 발주 내역 DB 저장 (발주 신청 버튼 클릭 시) ---
+# --- [기능 6] AI 발주 내역 DB 저장 ---
 @app.post("/api/orders/submit")
 def submit_orders(
     order_data: OrderCreateRequest, 
@@ -498,19 +469,16 @@ def submit_orders(
     try:
         today = date_type.today()
         for item in order_data.items:
-            # SalesHistory에 발주 예정 수량(order_qty) 업데이트 또는 생성
             history = db.query(models.SalesHistory).filter(
                 models.SalesHistory.product_id == item.product_id,
                 models.SalesHistory.date == today
             ).first()
-
             if history:
                 history.order_qty = item.suggested_qty
             else:
                 last_rec = db.query(models.SalesHistory)\
                     .filter(models.SalesHistory.product_id == item.product_id)\
                     .order_by(models.SalesHistory.date.desc()).first()
-                
                 db.add(models.SalesHistory(
                     product_id=item.product_id,
                     date=today,
@@ -519,34 +487,62 @@ def submit_orders(
                     sales_qty=0,
                     unit_price=last_rec.unit_price if last_rec else 3000
                 ))
-        
         db.commit()
         return {"status": "success", "message": f"{admin.full_name} 점장님, 발주 내역이 DB에 기록되었습니다."}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"발주 저장 실패: {str(e)}")
 
-# --- [기능 7] 학습용 데이터 합치기 (CSV + DB) ---
+# --- [수정 추가] 결제 및 발주 통합 승인 API (main.py 내부에 위치) ---
+@app.post("/api/orders/pay-and-submit")
+def pay_and_submit_orders(
+    order_data: OrderCreateRequest, 
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(auth.get_current_admin_user)
+):
+    try:
+        today = date_type.today()
+        card = db.query(models.Card).filter(models.Card.username == admin.username).first()
+        if not card or not card.card_number:
+            raise HTTPException(status_code=402, detail="등록된 결제 수단이 없습니다.")
+
+        for item in order_data.items:
+            history = db.query(models.SalesHistory).filter(
+                models.SalesHistory.product_id == item.product_id,
+                models.SalesHistory.date == today
+            ).first()
+            if history:
+                history.order_qty = item.suggested_qty
+            else:
+                last_rec = db.query(models.SalesHistory)\
+                    .filter(models.SalesHistory.product_id == item.product_id)\
+                    .order_by(models.SalesHistory.date.desc()).first()
+                db.add(models.SalesHistory(
+                    product_id=item.product_id,
+                    date=today,
+                    current_stock=(last_rec.current_stock + last_rec.order_qty - last_rec.sales_qty) if last_rec else 0,
+                    order_qty=item.suggested_qty,
+                    sales_qty=0,
+                    unit_price=last_rec.unit_price if last_rec else 3000
+                ))
+        db.commit()
+        return {"status": "success", "message": "결제 완료 및 발주 내역이 저장되었습니다."}
+    except Exception as e:
+        db.rollback()
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=f"결제/발주 처리 실패: {str(e)}")
+
+# --- [기능 7] 학습용 데이터 합치기 ---
 @app.get("/api/ai/training-data-raw")
 def get_combined_training_data(db: Session = Depends(database.get_db)):
-    # 1. 기존 CSV 로드
     df_csv = pd.read_csv('convenience_store_real_products_4years.csv')
-    
-    # 2. DB에서 실제 판매 데이터(SalesHistory) 로드
     sales_records = db.query(models.SalesHistory).all()
     if sales_records:
         db_data = []
         for s in sales_records:
             product = db.query(models.Product).filter(models.Product.id == s.product_id).first()
             if product:
-                db_data.append({
-                    '날짜': s.date.strftime('%Y-%m-%d'),
-                    '카테고리': product.category,
-                    '상품명': product.name,
-                    '판매량': s.sales_qty
-                })
-        df_db = pd.DataFrame(db_data)
-        combined = pd.concat([df_csv, df_db], ignore_index=True)
+                db_data.append({'날짜': s.date.strftime('%Y-%m-%d'), '카테고리': product.category, '상품명': product.name, '판매량': s.sales_qty})
+        combined = pd.concat([df_csv, pd.DataFrame(db_data)], ignore_index=True)
         return combined.to_dict(orient='records')
-    
     return df_csv.to_dict(orient='records')
