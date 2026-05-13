@@ -5,15 +5,21 @@ function Topbar() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [activePanel, setActivePanel] = useState('');
   const [username, setUsername] = useState(localStorage.getItem('username') || '');
-  const [userRole, setUserRole] = useState(localStorage.getItem('userRole') || 'staff');
+  
+  // 1. 초기 상태값 설정 (userRole과 role 모두 고려)
+  const [userRole, setUserRole] = useState(
+    localStorage.getItem('userRole') || localStorage.getItem('role') || 'staff'
+  );
+
   const [accountForm, setAccountForm] = useState({
     name: localStorage.getItem('userName') || '사용자',
-    role: localStorage.getItem('userRole') || 'staff',
+    role: userRole,
     storeName: 'Warehouse A',
     storeAddress: '서울시 강남구 테헤란로 123',
     password: '',
     confirmPassword: '',
   });
+
   const [paymentForm, setPaymentForm] = useState({
     cardHolder: '',
     cardNumber: '',
@@ -24,16 +30,25 @@ function Topbar() {
     postalCode: '',
     phoneNumber: '',
   });
+
   const [staffForm, setStaffForm] = useState({
     userId: '',
     fullName: '',
     password: '',
     role: 'staff',
   });
+
   const [isCardLoading, setIsCardLoading] = useState(false);
   const profileMenuRef = useRef(null);
-  const isAdmin = userRole === 'admin';
-  const displayRole = userRole === 'admin' ? 'System Admin' : 'Staff';
+
+  // ⭐️ 2. isAdmin 판별 로직 강화 (다른 곳에서 쓰이는 방식 포함)
+  // userRole 상태값 또는 로컬 스토리지의 두 가지 키값 중 하나라도 'admin'이면 점장으로 인식
+  const isAdmin = 
+    userRole?.toLowerCase() === 'admin' || 
+    localStorage.getItem('userRole')?.toLowerCase() === 'admin' || 
+    localStorage.getItem('role')?.toLowerCase() === 'admin';
+
+  const displayRole = isAdmin ? 'System Admin' : 'Staff';
 
   useEffect(() => {
     const syncUserFromServer = async () => {
@@ -46,16 +61,28 @@ function Topbar() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const profile = response.data;
+        
+        // 서버에서 받아온 실제 역할
+        const realRole = profile.role || 'staff';
+
         setUsername(profile.username || '');
-        setUserRole(profile.role || 'staff');
+        setUserRole(realRole);
+        
         setAccountForm((prev) => ({
           ...prev,
           name: profile.full_name || prev.name,
-          role: profile.role || prev.role,
+          role: realRole,
         }));
+
+        // ⭐️ 3. 스태프일 경우 로컬 스토리지의 잘못된 권한 정보 강제 초기화
         localStorage.setItem('userName', profile.full_name || '');
-        localStorage.setItem('userRole', profile.role || 'staff');
         localStorage.setItem('username', profile.username || '');
+        localStorage.setItem('userRole', realRole);
+        localStorage.setItem('role', realRole); // role 키도 함께 업데이트
+
+        if (realRole !== 'admin') {
+          setIsProfileMenuOpen(false); // 스태프라면 열려있는 메뉴 닫기
+        }
       } catch (error) {
         console.error('사용자 정보를 불러오지 못했습니다:', error);
       }
@@ -116,7 +143,7 @@ function Topbar() {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       alert('계정 관리 정보가 성공적으로 저장되었습니다.');
       localStorage.setItem('userName', accountForm.name);
       setActivePanel('');
@@ -218,7 +245,10 @@ function Topbar() {
   };
 
   const handleProfileButtonClick = () => {
-    setIsProfileMenuOpen((prev) => !prev);
+    // ⭐️ 4. 클릭 핸들러에서 점장 여부를 한 번 더 확인
+    if (isAdmin) {
+      setIsProfileMenuOpen((prev) => !prev);
+    }
   };
 
   const closePanels = () => {
@@ -229,7 +259,6 @@ function Topbar() {
   useEffect(() => {
     const fetchMyCard = async () => {
       if (activePanel !== 'payment') return;
-
       const token = localStorage.getItem('token');
       if (!token) return;
 
@@ -264,7 +293,6 @@ function Topbar() {
   return (
     <>
       <header className="h-20 border-b border-white/5 bg-[#0a0e14]/50 backdrop-blur-md px-10 flex items-center justify-between sticky top-0 z-50">
-        {/* 왼쪽: 현재 위치 및 상태 */}
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3">
             <span className="text-[11px] font-bold text-primary tracking-widest uppercase">Warehouse A</span>
@@ -279,25 +307,22 @@ function Topbar() {
           </div>
         </div>
 
-        {/* 오른쪽: 액션 아이콘 및 프로필 */}
         <div className="flex items-center gap-6">
-          {/* 알림 버튼 */}
           <button className="relative group">
             <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">notifications</span>
             <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0a0e14]"></span>
           </button>
 
-          {/* 설정 버튼 */}
           <button className="group">
             <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">settings</span>
           </button>
 
-          {/* 사용자 프로필 메뉴 */}
           <div ref={profileMenuRef} className="relative flex items-center gap-3 pl-4 border-l border-white/10">
             <button
               onClick={handleProfileButtonClick}
-              className="flex items-center gap-3 transition-opacity hover:opacity-80"
-              title="프로필 메뉴 열기"
+              // ⭐️ 5. 점장이 아닐 때 커서 및 호버 효과 제거
+              className={`flex items-center gap-3 transition-opacity ${isAdmin ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}`}
+              title={isAdmin ? "프로필 메뉴 열기" : "내 정보"}
             >
               <div className="text-right">
                 <p className="text-xs font-bold text-on-surface">{accountForm.name}</p>
@@ -310,7 +335,8 @@ function Topbar() {
               </div>
             </button>
 
-            {isProfileMenuOpen && (
+            {/* ⭐️ 6. 점장일 때만 드롭다운 메뉴 렌더링 (보안 강화) */}
+            {isProfileMenuOpen && isAdmin && (
               <div className="absolute right-0 top-14 z-[70] w-72 rounded-2xl border border-white/10 bg-[#101621] shadow-2xl overflow-hidden">
                 <button
                   onClick={() => {
@@ -325,30 +351,27 @@ function Topbar() {
                   </span>
                   <span className="material-symbols-outlined text-base text-gray-500">chevron_right</span>
                 </button>
-                {isAdmin && (
-                  <>
-                    <button
-                      onClick={() => {
-                        setActivePanel('payment');
-                        setIsProfileMenuOpen(false);
-                      }}
-                      className="w-full px-4 py-3 text-left text-sm flex items-center justify-between text-gray-200 hover:bg-white/5 transition-colors border-t border-white/5"
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-base">credit_card</span>
-                        결제수단
-                      </span>
-                      <span className="material-symbols-outlined text-base text-gray-500">chevron_right</span>
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={() => {
+                    setActivePanel('payment');
+                    setIsProfileMenuOpen(false);
+                  }}
+                  className="w-full px-4 py-3 text-left text-sm flex items-center justify-between text-gray-200 hover:bg-white/5 transition-colors border-t border-white/5"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base">credit_card</span>
+                    결제수단
+                  </span>
+                  <span className="material-symbols-outlined text-base text-gray-500">chevron_right</span>
+                </button>
               </div>
             )}
           </div>
         </div>
       </header>
 
-      {activePanel && (
+      {/* ⭐️ 7. 패널 영역도 점장일 때만 활성화되도록 보호 */}
+      {activePanel && isAdmin && (
         <div className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm px-4 py-8 sm:px-6">
           <div className="h-full w-full overflow-y-auto">
             <div className="mx-auto flex min-h-full max-w-2xl items-center justify-center">
@@ -371,55 +394,48 @@ function Topbar() {
 
                 {activePanel === 'account' && (
                   <>
-                  <form onSubmit={handleAccountSave} className="px-6 py-6 sm:px-8">
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">이름</label>
-                          <input name="name" value={accountForm.name} onChange={handleAccountFieldChange} className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
+                    <form onSubmit={handleAccountSave} className="px-6 py-6 sm:px-8">
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">이름</label>
+                            <input name="name" value={accountForm.name} onChange={handleAccountFieldChange} className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">권한</label>
+                            {/* ⭐️ 권한 필드는 읽기 전용으로 수정 */}
+                            <input value={displayRole} readOnly className="h-12 w-full rounded-2xl bg-black/30 border border-white/10 px-4 text-sm text-gray-500 outline-none" />
+                          </div>
+                        </div>
+                        {/* 이하 폼 내용 동일 */}
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">매장명</label>
+                            <input name="storeName" value={accountForm.storeName} onChange={handleAccountFieldChange} className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">아이디</label>
+                            <input value={username} disabled className="h-12 w-full rounded-2xl bg-black/30 border border-white/10 px-4 text-sm text-gray-400 outline-none" />
+                          </div>
                         </div>
                         <div className="space-y-2">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">권한</label>
-                          <input name="role" value={accountForm.role} onChange={handleAccountFieldChange} className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
+                          <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">편의점 위치 정보</label>
+                          <input name="storeAddress" value={accountForm.storeAddress} onChange={handleAccountFieldChange} className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
+                          <p className="text-sm font-bold text-white">비밀번호 변경</p>
+                          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <input name="password" type="password" value={accountForm.password} onChange={handleAccountFieldChange} placeholder="새 비밀번호" className="h-12 w-full rounded-2xl bg-black/20 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
+                            <input name="confirmPassword" type="password" value={accountForm.confirmPassword} onChange={handleAccountFieldChange} placeholder="비밀번호 확인" className="h-12 w-full rounded-2xl bg-black/20 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
+                          </div>
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">매장명</label>
-                          <input name="storeName" value={accountForm.storeName} onChange={handleAccountFieldChange} className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">아이디</label>
-                          <input value={username} disabled className="h-12 w-full rounded-2xl bg-black/30 border border-white/10 px-4 text-sm text-gray-400 outline-none" />
-                        </div>
+                      <div className="mt-8 flex justify-end gap-3">
+                        <button type="button" onClick={closePanels} className="h-12 rounded-2xl border border-white/10 px-5 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5">취소</button>
+                        <button type="submit" className="h-12 rounded-2xl bg-primary px-5 text-sm font-semibold text-black">저장</button>
                       </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">편의점 위치 정보</label>
-                        <input name="storeAddress" value={accountForm.storeAddress} onChange={handleAccountFieldChange} className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
-                      </div>
-
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5">
-                        <p className="text-sm font-bold text-white">비밀번호 변경</p>
-                        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <input name="password" type="password" value={accountForm.password} onChange={handleAccountFieldChange} placeholder="새 비밀번호" className="h-12 w-full rounded-2xl bg-black/20 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
-                          <input name="confirmPassword" type="password" value={accountForm.confirmPassword} onChange={handleAccountFieldChange} placeholder="비밀번호 확인" className="h-12 w-full rounded-2xl bg-black/20 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-8 flex justify-end gap-3">
-                      <button type="button" onClick={closePanels} className="h-12 rounded-2xl border border-white/10 px-5 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5">
-                        취소
-                      </button>
-                      <button type="submit" className="h-12 rounded-2xl bg-primary px-5 text-sm font-semibold text-black">
-                        저장
-                      </button>
-                    </div>
-                  </form>
-
-                  {isAdmin && (
+                    </form>
+                    {/* 직원 관리 섹션 (isAdmin일 때만 보임) */}
                     <div className="border-t border-white/10 bg-[#0a0e14]/50 px-6 py-8 sm:px-8 mt-2 shadow-inner">
                       <div className="mb-6">
                         <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-emerald-500/80">Staff Management</p>
@@ -431,41 +447,32 @@ function Topbar() {
                             <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">직원 이름</label>
                             <input name="fullName" value={staffForm.fullName} onChange={handleStaffFieldChange} placeholder="예: 김알바" className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
                           </div>
-                          
                           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div className="space-y-2">
                               <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">아이디</label>
-                              <input name="userId" value={staffForm.userId} onChange={handleStaffFieldChange} placeholder="로그인 아이디" className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" autoComplete="new-password" />
+                              <input name="userId" value={staffForm.userId} onChange={handleStaffFieldChange} placeholder="로그인 아이디" className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
                             </div>
                             <div className="space-y-2">
                               <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">초기 비밀번호</label>
-                              <input name="password" type="password" value={staffForm.password} onChange={handleStaffFieldChange} placeholder="비밀번호" className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" autoComplete="new-password" />
+                              <input name="password" type="password" value={staffForm.password} onChange={handleStaffFieldChange} placeholder="비밀번호" className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
                             </div>
                           </div>
-
                           <div className="space-y-2">
                             <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">직급 권한</label>
-                            <select name="role" value={staffForm.role} onChange={handleStaffFieldChange} className="h-12 w-full rounded-2xl bg-[#101621] border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40">
+                            <select name="role" value={staffForm.role} onChange={handleStaffFieldChange} className="h-12 w-full rounded-2xl bg-[#101621] border border-white/10 px-4 text-sm text-white outline-none">
                               <option value="staff">일반 직원 (결제 불가)</option>
                               <option value="admin">점장 (모든 권한)</option>
                             </select>
                           </div>
-                          
-                          <div className="rounded-2xl border border-dashed border-white/10 bg-emerald-500/10 p-4 text-sm text-emerald-400">
-                            계정 관리 패널 내에서 점장 권한으로 새로운 직원을 직접 시스템에 등록합니다.
-                          </div>
                         </div>
-
                         <div className="mt-8 flex justify-end">
-                          <button type="submit" className="h-12 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-700 font-bold px-6 text-sm text-white shadow-lg transition-transform hover:scale-105 active:scale-95">
-                            계정 만들기
-                          </button>
+                          <button type="submit" className="h-12 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-700 font-bold px-6 text-sm text-white shadow-lg transition-transform hover:scale-105 active:scale-95">계정 만들기</button>
                         </div>
                       </form>
                     </div>
-                  )}
                   </>
                 )}
+                {/* 결제수단 관리 폼 동일 */}
                 {activePanel === 'payment' && (
                   <form onSubmit={handlePaymentSave} className="px-6 py-6 sm:px-8">
                     <div className="space-y-6">
@@ -479,12 +486,10 @@ function Topbar() {
                           <input name="expiryDate" value={paymentForm.expiryDate} onChange={handlePaymentFieldChange} maxLength={4} placeholder="MMYY" className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
                         </div>
                       </div>
-
                       <div className="space-y-2">
                         <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">카드 번호 16자리</label>
                         <input name="cardNumber" value={paymentForm.cardNumber} onChange={handlePaymentFieldChange} maxLength={16} placeholder="0000000000000000" className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
                       </div>
-
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                           <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">CVC 3자리</label>
@@ -495,12 +500,10 @@ function Topbar() {
                           <input name="pinPrefix" value={paymentForm.pinPrefix} onChange={handlePaymentFieldChange} maxLength={2} placeholder="12" className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
                         </div>
                       </div>
-
                       <div className="space-y-2">
                         <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">청구지 주소</label>
                         <input name="billingAddress" value={paymentForm.billingAddress} onChange={handlePaymentFieldChange} className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
                       </div>
-
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                           <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400">우편번호</label>
@@ -511,24 +514,16 @@ function Topbar() {
                           <input name="phoneNumber" value={paymentForm.phoneNumber} onChange={handlePaymentFieldChange} placeholder="01012345678" className="h-12 w-full rounded-2xl bg-white/5 border border-white/10 px-4 text-sm text-white outline-none focus:border-primary/40" />
                         </div>
                       </div>
-
                       <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-gray-400">
                         {isCardLoading ? '저장된 카드 정보를 불러오는 중입니다...' : '저장된 카드 정보가 있으면 자동으로 채워집니다.'}
                       </div>
                     </div>
-
                     <div className="mt-8 flex justify-end gap-3">
-                      <button type="button" onClick={closePanels} className="h-12 rounded-2xl border border-white/10 px-5 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5">
-                        취소
-                      </button>
-                      <button type="submit" className="h-12 rounded-2xl bg-primary px-5 text-sm font-semibold text-black">
-                        저장
-                      </button>
+                      <button type="button" onClick={closePanels} className="h-12 rounded-2xl border border-white/10 px-5 text-sm font-semibold text-gray-300 transition-colors hover:bg-white/5">취소</button>
+                      <button type="submit" className="h-12 rounded-2xl bg-primary px-5 text-sm font-semibold text-black">저장</button>
                     </div>
                   </form>
                 )}
-
-
               </div>
             </div>
           </div>
