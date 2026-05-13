@@ -3,12 +3,11 @@ import axios from 'axios';
 
 function AIOrders() {
   const [recommendations, setRecommendations] = useState([]);
-  const [summary, setSummary] = useState(''); // AI 요약 문구 상태
+  const [summary, setSummary] = useState('');
   const [loading, setLoading] = useState(true);
 
   const isAdmin = localStorage.getItem('userRole') === 'admin' || localStorage.getItem('role') === 'admin';
 
-  // 1. 페이지 접속 시 자동으로 AI 예측 데이터 호출
   useEffect(() => {
     fetchAIRecommendations();
   }, []);
@@ -18,83 +17,103 @@ function AIOrders() {
     try {
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
       const response = await axios.get(`${API_BASE_URL}/api/ai/suggest-orders`);
-      
-      // 백엔드 구조 변경에 맞춰 데이터 분리 저장
       setSummary(response.data.summary);
       setRecommendations(response.data.suggestions);
-      
-      // 백업용으로 로컬 스토리지 저장
-      localStorage.setItem('ai_recommendations', JSON.stringify(response.data.suggestions));
-      localStorage.setItem('ai_summary', response.data.summary);
     } catch (err) {
       console.error("AI 데이터 로드 실패:", err);
-      const savedData = localStorage.getItem('ai_recommendations');
-      const savedSummary = localStorage.getItem('ai_summary');
-      if (savedData) setRecommendations(JSON.parse(savedData));
-      if (savedSummary) setSummary(savedSummary);
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. 수량 조절 함수 (+/-)
   const adjustQty = (id, amount) => {
-    const updated = recommendations.map(item => 
+    const updated = recommendations.map(item =>
       item.id === id ? { ...item, suggested_qty: Math.max(0, item.suggested_qty + amount) } : item
     );
     setRecommendations(updated);
-    localStorage.setItem('ai_recommendations', JSON.stringify(updated));
   };
 
-  // 3. 발주 실행 및 DB 저장
+  const handleRequestError = (err, actionName) => {
+    const status = err.response?.status;
+    const detail = err.response?.data?.detail || err.message;
+    let message = `🚨 ${actionName} 실패\n\n`;
+    if (status === 401) message += "🔑 로그인이 만료되었습니다. 다시 로그인해 주세요.";
+    else if (status === 404) message += "❓ 서버 경로를 찾을 수 없습니다. (재빌드 확인 필요)";
+    else message += `⚠️ [${status || 'Error'}] ${detail}`;
+    alert(message);
+  };
+
   const handleOrderSubmit = async () => {
     if (!isAdmin) {
       alert("🚨 발주 권한이 없습니다. 점장 계정으로 로그인해주세요.");
       return;
     }
-    if (recommendations.length === 0) return;
+
+    const orderItems = recommendations.filter(item => item.suggested_qty > 0);
+    if (orderItems.length === 0) {
+      alert("발주할 상품 수량이 없습니다.");
+      return;
+    }
 
     try {
       const token = localStorage.getItem('token');
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+
+      // 1. 카드 등록 확인
+      const cardCheck = await axios.get(`${API_BASE_URL}/api/payments/check-card`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!cardCheck.data.hasCard) {
+        alert("🚨 등록된 결제 카드가 없습니다.\n결제 수단 관리 페이지에서 카드를 먼저 등록해 주세요.");
+        return;
+      }
+
+      const fullCardNum = cardCheck.data.card_number || "";
+      const lastFour = fullCardNum.length >= 4 ? fullCardNum.slice(-4) : "****";
+
+      if (!window.confirm(`💳 등록된 카드(끝자리: ${lastFour})로\n총 ${orderItems.length}건의 품목을 자동 결제 및 발주하시겠습니까?`)) {
+        return;
+      }
+
+      // 2. 실제 결제 및 발주 진행
       const payload = {
-        items: recommendations
-          .filter(item => item.suggested_qty > 0)
-          .map(item => ({
-            product_id: item.id,
-            suggested_qty: item.suggested_qty
-          }))
+        items: orderItems.map(item => ({
+          product_id: item.id,
+          suggested_qty: item.suggested_qty
+        }))
       };
 
-      // 백엔드 DB 저장 API 호출
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
-      await axios.post(`${API_BASE_URL}/api/orders/submit`, payload, {
-        headers: { 
+      await axios.post(`${API_BASE_URL}/api/orders/pay-and-submit`, payload, {
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
 
-      // 로컬 히스토리 기록 (Order History용)
-      const newOrder = {
+      // --- [추가/복구] 주문 내역 로컬 스토리지 저장 (History 페이지 연동용) ---
+      const newOrderHistoryItem = {
         id: `ORD-${Date.now()}`,
         date: new Date().toLocaleString(),
-        items: recommendations.filter(item => item.suggested_qty > 0),
-        totalItems: payload.items.length
+        items: orderItems, // 주문한 상품 리스트 전체 저장
+        totalItems: orderItems.length,
+        status: 'COMPLETED'
       };
-      const existingHistory = JSON.parse(localStorage.getItem('order_history') || '[]');
-      localStorage.setItem('order_history', JSON.stringify([newOrder, ...existingHistory]));
 
-      alert("금일 발주 내역이 성공적으로 저장되었습니다!");
-      
-      // 초기화
+      const existingHistory = JSON.parse(localStorage.getItem('order_history') || '[]');
+      localStorage.setItem('order_history', JSON.stringify([newOrderHistoryItem, ...existingHistory]));
+      // ------------------------------------------------------------------
+
+      alert("✅ 자동 결제 및 발주가 성공적으로 완료되었습니다!");
+
+      // 화면 초기화 및 임시 저장 데이터 삭제
       setRecommendations([]);
       setSummary('');
       localStorage.removeItem('ai_recommendations');
       localStorage.removeItem('ai_summary');
-      
+
     } catch (err) {
-      console.error(err);
-      alert("발주 처리 중 오류가 발생했습니다.");
+      handleRequestError(err, "발주 처리");
     }
   };
 
@@ -111,10 +130,9 @@ function AIOrders() {
     <div className="flex flex-col h-full max-h-screen overflow-hidden p-6 gap-6 text-white">
       <header>
         <h1 className="text-4xl font-black mb-2 tracking-tighter">AI 스마트 발주 시스템</h1>
-        <p className="text-gray-400 text-sm">지난해 판매 트렌드와 현재 재고를 실시간으로 비교 분석합니다.</p>
+        <p className="text-gray-400 text-sm">실시간 재고와 AI 예측 데이터를 기반으로 발주를 제안합니다.</p>
       </header>
 
-      {/* --- AI 분석 요약 섹션 --- */}
       {summary && (
         <div className="bg-indigo-600/20 border border-indigo-500/30 p-5 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="flex items-center gap-3 mb-2">
@@ -123,13 +141,10 @@ function AIOrders() {
             </div>
             <span className="font-bold text-indigo-300 text-lg">AI 예측 리포트</span>
           </div>
-          <p className="text-sm leading-relaxed text-indigo-100/80">
-            {summary}
-          </p>
+          <p className="text-sm leading-relaxed text-indigo-100/80">{summary}</p>
         </div>
       )}
 
-      {/* --- 상품 리스트 섹션 --- */}
       <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
         {recommendations.length === 0 ? (
           <div className="text-center py-40 border-2 border-dashed border-white/10 rounded-3xl opacity-30">
@@ -137,51 +152,18 @@ function AIOrders() {
           </div>
         ) : (
           recommendations.map((p) => (
-            <div 
-              key={p.id} 
-              className={`p-6 rounded-3xl border transition-all flex items-center justify-between ${
-                p.is_special 
-                ? 'bg-gradient-to-br from-indigo-900/40 to-purple-900/40 border-indigo-500/50 shadow-lg shadow-indigo-500/10' 
-                : 'bg-white/5 border-white/10 hover:bg-white/10'
-              }`}
-            >
+            <div key={p.id} className={`p-6 rounded-3xl border transition-all flex items-center justify-between ${p.is_special ? 'bg-gradient-to-br from-indigo-900/40 to-purple-900/40 border-indigo-500/50 shadow-lg shadow-indigo-500/10' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <h4 className="font-bold text-xl">{p.name}</h4>
-                  {p.is_special && (
-                    <span className="px-2 py-0.5 bg-pink-500 text-[10px] font-black rounded-md uppercase tracking-wider animate-pulse">
-                      Hot Trend
-                    </span>
-                  )}
+                  {p.is_special && <span className="px-2 py-0.5 bg-pink-500 text-[10px] font-black rounded-md uppercase animate-pulse">Hot Trend</span>}
                 </div>
-                <p className="text-sm text-indigo-400 font-medium">
-                  현재고: {p.current_stock}개 | AI 예측판매: {p.predicted_sales}개
-                </p>
-                <p className="text-[10px] text-gray-500 mt-1">
-                  발주 후 예상 재고: {p.current_stock + p.suggested_qty}개
-                </p>
+                <p className="text-sm text-indigo-400 font-medium">현재고: {p.current_stock}개 | AI 예측판매: {p.predicted_sales}개</p>
               </div>
-
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-4 bg-black/40 p-2 rounded-2xl border border-white/10">
-                  <button 
-                    onClick={() => adjustQty(p.id, -1)} 
-                    disabled={!isAdmin}
-                    className={`w-10 h-10 rounded-xl text-2xl font-bold transition-colors ${isAdmin ? 'bg-white/5 hover:bg-white/20' : 'opacity-20 cursor-not-allowed text-gray-500'}`}
-                  >
-                    -
-                  </button>
-                  <span className="text-3xl font-black w-12 text-center text-indigo-400">
-                    {p.suggested_qty}
-                  </span>
-                  <button 
-                    onClick={() => adjustQty(p.id, 1)} 
-                    disabled={!isAdmin}
-                    className={`w-10 h-10 rounded-xl text-2xl font-bold shadow-lg transition-all ${isAdmin ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30 active:scale-90' : 'opacity-20 cursor-not-allowed text-gray-500'}`}
-                  >
-                    +
-                  </button>
-                </div>
+              <div className="flex items-center gap-4 bg-black/40 p-2 rounded-2xl border border-white/10">
+                <button onClick={() => adjustQty(p.id, -1)} disabled={!isAdmin} className="w-10 h-10 rounded-xl text-2xl font-bold bg-white/5 hover:bg-white/20">-</button>
+                <span className="text-3xl font-black w-12 text-center text-indigo-400">{p.suggested_qty}</span>
+                <button onClick={() => adjustQty(p.id, 1)} disabled={!isAdmin} className="w-10 h-10 rounded-xl text-2xl font-bold bg-indigo-600 hover:bg-indigo-500">+</button>
               </div>
             </div>
           ))
@@ -189,13 +171,13 @@ function AIOrders() {
       </div>
 
       <footer className="pt-2">
-        <button 
+        <button
           onClick={handleOrderSubmit}
           disabled={!isAdmin}
           className={`w-full h-20 font-black text-xl rounded-2xl transition-all flex items-center justify-center gap-3 ${isAdmin ? 'bg-gradient-to-r from-indigo-600 to-purple-600 shadow-xl shadow-indigo-600/20 active:scale-[0.98]' : 'bg-white/10 text-gray-500 cursor-not-allowed border border-white/20'}`}
         >
-          <span className="material-symbols-outlined">{isAdmin ? 'shopping_cart_checkout' : 'lock'}</span>
-          {isAdmin ? '전체 제안 수량으로 발주 확정' : '발주 권한 없음 (점장 전용)'}
+          <span className="material-symbols-outlined">{isAdmin ? 'credit_card' : 'lock'}</span>
+          {isAdmin ? 'AI 제안 수량 결제 및 발주' : '발주 권한 없음 (점장 전용)'}
         </button>
       </footer>
     </div>
