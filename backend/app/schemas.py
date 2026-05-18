@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 
 class ProductBase(BaseModel):
     id: str
@@ -39,3 +39,56 @@ class SalesHistory(SalesHistoryBase):
     id: int
     class Config:
         from_attributes = True
+
+# --- Purchase Order Schemas ---
+class PurchaseOrderItemBase(BaseModel):
+    product_id: str
+    order_qty: int
+
+class PurchaseOrderCreate(BaseModel):
+    items: List[PurchaseOrderItemBase]
+
+class PurchaseOrderItemResponse(PurchaseOrderItemBase):
+    id: int
+    po_id: int
+    product_name: Optional[str] = None
+    received_qty: Optional[int] = None
+    expiration_date: Optional[date] = None
+    class Config:
+        from_attributes = True
+
+class PurchaseOrderResponse(BaseModel):
+    id: int
+    order_date: date
+    status: str
+    items: List[PurchaseOrderItemResponse] = []
+    class Config:
+        from_attributes = True
+
+# --- Inbound Receipt Schemas ---
+class InboundReceiptItemBase(BaseModel):
+    product_id: str
+    received_qty: int
+    expiration_date: Optional[date] = None
+
+class InboundReceiptCreate(BaseModel):
+    po_id: Optional[int] = None
+    items: List[InboundReceiptItemBase]
+
+class InboundReceiptItemResponse(InboundReceiptItemBase):
+    id: int
+    receipt_id: int
+    class Config:
+        from_attributes = True
+
+class InboundReceiptResponse(BaseModel):
+    id: int
+    po_id: Optional[int] = None
+    received_date: date
+    status: str
+    items: List[InboundReceiptItemResponse] = []
+    class Config:
+        from_attributes = True
+
+class InboundReceiptApprove(BaseModel):
+    items: List[InboundReceiptItemBase]

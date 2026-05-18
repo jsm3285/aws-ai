@@ -70,4 +70,31 @@ class SalesHistory(Base):
     event_name = Column(String(50), nullable=True)   # 기념일
     earliest_expiration = Column(Date, nullable=True) # 가장 빠른 유통기한
 
+# 4. 발주서 및 입고 관리 (Purchase Order & Inbound)
+class PurchaseOrder(Base):
+    __tablename__ = "purchase_orders"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    order_date = Column(Date, default=datetime.date.today)
+    status = Column(String(20), default="PENDING") # PENDING, PARTIAL, RECEIVED
 
+class PurchaseOrderItem(Base):
+    __tablename__ = "purchase_order_items"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    po_id = Column(Integer, ForeignKey("purchase_orders.id"))
+    product_id = Column(String(20), ForeignKey("products.id"))
+    order_qty = Column(Integer, default=0)
+
+class InboundReceipt(Base):
+    __tablename__ = "inbound_receipts"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    po_id = Column(Integer, ForeignKey("purchase_orders.id"), nullable=True)
+    received_date = Column(Date, default=datetime.date.today)
+    status = Column(String(20), default="PENDING_REVIEW") # PENDING_REVIEW, APPROVED
+
+class InboundReceiptItem(Base):
+    __tablename__ = "inbound_receipt_items"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    receipt_id = Column(Integer, ForeignKey("inbound_receipts.id"))
+    product_id = Column(String(20), ForeignKey("products.id"))
+    received_qty = Column(Integer, default=0)
+    expiration_date = Column(Date, nullable=True)
