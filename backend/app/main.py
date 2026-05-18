@@ -10,8 +10,8 @@ import os
 import joblib
 import pandas as pd
 
-# database, models, auth 임포트
-from . import models, database, auth
+# database, models, auth, schemas 임포트
+from . import models, database, auth, schemas
 
 app = FastAPI(title="Nexus Core API v3.5 - Kinetic Auth")
 
@@ -468,6 +468,10 @@ def submit_orders(
 ):
     try:
         today = date_type.today()
+        po = models.PurchaseOrder(order_date=today, status="PENDING")
+        db.add(po)
+        db.flush()
+
         for item in order_data.items:
             history = db.query(models.SalesHistory).filter(
                 models.SalesHistory.product_id == item.product_id,
@@ -487,6 +491,14 @@ def submit_orders(
                     sales_qty=0,
                     unit_price=last_rec.unit_price if last_rec else 3000
                 ))
+            
+            po_item = models.PurchaseOrderItem(
+                po_id=po.id,
+                product_id=item.product_id,
+                order_qty=item.suggested_qty
+            )
+            db.add(po_item)
+
         db.commit()
         return {"status": "success", "message": f"{admin.full_name} 점장님, 발주 내역이 DB에 기록되었습니다."}
     except Exception as e:
@@ -506,6 +518,10 @@ def pay_and_submit_orders(
         if not card or not card.card_number:
             raise HTTPException(status_code=402, detail="등록된 결제 수단이 없습니다.")
 
+        po = models.PurchaseOrder(order_date=today, status="PENDING")
+        db.add(po)
+        db.flush()
+
         for item in order_data.items:
             history = db.query(models.SalesHistory).filter(
                 models.SalesHistory.product_id == item.product_id,
@@ -525,6 +541,14 @@ def pay_and_submit_orders(
                     sales_qty=0,
                     unit_price=last_rec.unit_price if last_rec else 3000
                 ))
+            
+            po_item = models.PurchaseOrderItem(
+                po_id=po.id,
+                product_id=item.product_id,
+                order_qty=item.suggested_qty
+            )
+            db.add(po_item)
+
         db.commit()
         return {"status": "success", "message": "결제 완료 및 발주 내역이 저장되었습니다."}
     except Exception as e:
@@ -546,3 +570,117 @@ def get_combined_training_data(db: Session = Depends(database.get_db)):
         combined = pd.concat([df_csv, pd.DataFrame(db_data)], ignore_index=True)
         return combined.to_dict(orient='records')
     return df_csv.to_dict(orient='records')
+
+# --- [기능 8] 입고 검수 및 승인 시스템 (Inbound Pipeline) ---
+@app.get("/api/orders/pending", response_model=List[schemas.PurchaseOrderResponse])
+def get_all_orders(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    """현재 모든 발주서 목록 조회 (최신순)"""
+    orders = db.query(models.PurchaseOrder).order_by(models.PurchaseOrder.id.desc()).all()
+    for order in orders:
+        items = db.query(models.PurchaseOrderItem).filter(models.PurchaseOrderItem.po_id == order.id).all()
+        
+        receipt_items = {}
+        if order.status == "RECEIVED":
+            receipt = db.query(models.InboundReceipt).filter(models.InboundReceipt.po_id == order.id).first()
+            if receipt:
+                r_items = db.query(models.InboundReceiptItem).filter(models.InboundReceiptItem.receipt_id == receipt.id).all()
+                for ri in r_items:
+                    receipt_items[ri.product_id] = ri
+                    
+        for item in items:
+            product = db.query(models.Product).filter(models.Product.id == item.product_id).first()
+            item.product_name = product.name if product else "알 수 없음"
+            
+            if item.product_id in receipt_items:
+                item.received_qty = receipt_items[item.product_id].received_qty
+                item.expiration_date = receipt_items[item.product_id].expiration_date
+                
+        order.items = items
+    return orders
+
+@app.post("/api/inbound/draft", response_model=schemas.InboundReceiptResponse)
+def create_inbound_draft(
+    payload: schemas.InboundReceiptCreate, 
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """가입고(Draft) 전표 생성 (AI나 외부 연동 시스템이 호출한다고 가정)"""
+    receipt = models.InboundReceipt(
+        po_id=payload.po_id,
+        received_date=date_type.today(),
+        status="PENDING_REVIEW"
+    )
+    db.add(receipt)
+    db.flush()
+    
+    for item in payload.items:
+        receipt_item = models.InboundReceiptItem(
+            receipt_id=receipt.id,
+            product_id=item.product_id,
+            received_qty=item.received_qty,
+            expiration_date=item.expiration_date
+        )
+        db.add(receipt_item)
+        
+    db.commit()
+    db.refresh(receipt)
+    receipt.items = db.query(models.InboundReceiptItem).filter(models.InboundReceiptItem.receipt_id == receipt.id).all()
+    return receipt
+
+@app.get("/api/inbound/pending", response_model=List[schemas.InboundReceiptResponse])
+def get_pending_inbounds(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    """관리자 검수 대기 중인 가입고 목록 조회"""
+    receipts = db.query(models.InboundReceipt).filter(models.InboundReceipt.status == "PENDING_REVIEW").all()
+    for receipt in receipts:
+        receipt.items = db.query(models.InboundReceiptItem).filter(models.InboundReceiptItem.receipt_id == receipt.id).all()
+    return receipts
+
+@app.post("/api/inbound/{receipt_id}/approve")
+def approve_inbound(
+    receipt_id: int, 
+    payload: schemas.InboundReceiptApprove,
+    db: Session = Depends(database.get_db),
+    admin: models.User = Depends(auth.get_current_admin_user)
+):
+    """가입고 검수 완료 및 최종 재고 반영"""
+    receipt = db.query(models.InboundReceipt).filter(models.InboundReceipt.id == receipt_id).first()
+    if not receipt:
+        raise HTTPException(status_code=404, detail="해당 입고 전표를 찾을 수 없습니다.")
+    if receipt.status != "PENDING_REVIEW":
+        raise HTTPException(status_code=400, detail="이미 처리된 전표입니다.")
+        
+    # 삭제 후 재생성이 아닌 각 항목 업데이트/추가를 위한 간단한 방법:
+    # 기존 항목 전부 날리고 payload 온걸로 엎어친 후 승인
+    db.query(models.InboundReceiptItem).filter(models.InboundReceiptItem.receipt_id == receipt_id).delete()
+    
+    today = date_type.today()
+    for item in payload.items:
+        # 1. 입고 명세에 저장
+        receipt_item = models.InboundReceiptItem(
+            receipt_id=receipt.id,
+            product_id=item.product_id,
+            received_qty=item.received_qty,
+            expiration_date=item.expiration_date
+        )
+        db.add(receipt_item)
+        
+        # 2. 실제 재고(InventoryLots) 증가
+        if item.received_qty > 0:
+            lot = models.InventoryLots(
+                product_id=item.product_id,
+                quantity=item.received_qty,
+                expiration_date=item.expiration_date,
+                received_date=today
+            )
+            db.add(lot)
+            
+    receipt.status = "APPROVED"
+    
+    # 발주서가 연결되어 있다면 상태를 RECEIVED로 변경
+    if receipt.po_id:
+        po = db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == receipt.po_id).first()
+        if po:
+            po.status = "RECEIVED"
+            
+    db.commit()
+    return {"status": "success", "message": f"{admin.full_name} 님, 입고 승인이 완료되었습니다."}
