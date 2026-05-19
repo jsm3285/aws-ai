@@ -1,0 +1,66 @@
+services:
+  db:
+    image: mysql:8.0
+    # image: jsm3285/prj_all:db
+    container_name: mysql-db
+    restart: always
+    environment:
+      TZ: "Asia/Seoul"
+      MYSQL_ROOT_PASSWORD: "root_password"
+      MYSQL_DATABASE: "my_database"
+      MYSQL_INITCONF: "--default-time-zone=+09:00"
+    ports:
+      - "3306:3306"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - mysql-db-volume:/var/lib/mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    # image: jsm3285/prj_all:backend
+    container_name: fastapi-backend
+    restart: always
+    ports:
+      - "8001:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+    environment:
+      TZ: "Asia/Seoul"
+      DATABASE_URL: "mysql+pymysql://root:root_password@db:3306/my_database"
+    volumes:
+      - ./backend:/app
+      - /etc/localtime:/etc/localtime:ro
+
+  frontend:
+    build: ./frontend
+    # image: jsm3285/prj_all:frontend
+    container_name: react-frontend
+    restart: always
+    ports:
+      - "80:5173"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    environment:
+      - VITE_API_URL=http://localhost:8001
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql-db-volume:
