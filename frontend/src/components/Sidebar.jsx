@@ -12,6 +12,7 @@ function Sidebar() {
     { name: 'SCAN/REGISTER', path: '/scan', icon: 'qr_code_scanner' },
     { name: 'AI ORDERS', path: '/ai-orders', icon: 'smart_toy' },
     { name: 'ORDER HISTORY', path: '/history', icon: 'history' },
+    { name: 'POS 결제', path: '/pos', icon: 'point_of_sale' },
   ];
 
   return (

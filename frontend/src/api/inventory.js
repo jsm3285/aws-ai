@@ -40,3 +40,15 @@ export const approveInbound = async (receiptId, payload) => {
   const response = await axios.post(`${API_URL}/api/inbound/${receiptId}/approve`, payload, getAuthHeaders());
   return response.data;
 };
+
+// POS 화면용 상세 재고 가져오기
+export const getPOSInventory = async () => {
+  const response = await axios.get(`${API_URL}/api/pos/inventory`, getAuthHeaders());
+  return response.data;
+};
+
+// POS 화면용 판매 처리
+export const sellItem = async (payload) => {
+  const response = await axios.post(`${API_URL}/api/dashboard/sell`, payload, getAuthHeaders());
+  return response.data;
+};

@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import ScanRegister from './pages/ScanRegister';
 import AIOrders from './pages/AIOrders';
 import OrderHistory from './pages/OrderHistory'; // 이력 페이지 추가
+import POSView from './pages/POSView';
 
 function App() {
   return (
@@ -30,6 +31,10 @@ function App() {
         <Route 
           path="/history" 
           element={<Layout><OrderHistory /></Layout>} 
+        />
+        <Route 
+          path="/pos" 
+          element={<Layout><POSView /></Layout>} 
         />
       </Routes>
     </Router>

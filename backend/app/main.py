@@ -671,3 +671,46 @@ def approve_inbound(
             
     db.commit()
     return {"status": "success", "message": f"{admin.full_name} 님, 입고 승인이 완료되었습니다."}
+
+@app.get("/api/pos/inventory")
+def get_pos_inventory(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    products = db.query(models.Product).all()
+    today = date_type.today()
+    
+    result = []
+    for p in products:
+        lots = db.query(models.InventoryLots).filter(
+            models.InventoryLots.product_id == p.id,
+            models.InventoryLots.quantity > 0
+        ).order_by(models.InventoryLots.expiration_date.asc()).all()
+        
+        if not lots:
+            continue
+            
+        red_qty = 0
+        yellow_qty = 0
+        green_qty = 0
+        
+        for lot in lots:
+            days_left = (lot.expiration_date - today).days
+            if days_left <= 3:
+                red_qty += lot.quantity
+            elif days_left <= 7:
+                yellow_qty += lot.quantity
+            else:
+                green_qty += lot.quantity
+                
+        result.append({
+            "id": p.id,
+            "name": p.name,
+            "total": red_qty + yellow_qty + green_qty,
+            "lots": {
+                "red": red_qty,
+                "yellow": yellow_qty,
+                "green": green_qty
+            }
+        })
+    return result
