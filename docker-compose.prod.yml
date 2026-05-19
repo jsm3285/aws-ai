@@ -1,26 +1,4 @@
 services:
-  db:
-    image: mysql:8.0
-    container_name: mysql-db-prod
-    restart: always
-    environment:
-      TZ: "Asia/Seoul"
-      MYSQL_ROOT_PASSWORD: "root_password"
-      MYSQL_DATABASE: "my_database"
-      MYSQL_INITCONF: "--default-time-zone=+09:00"
-    ports:
-      - "3306:3306"
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - mysql-db-prod-volume:/var/lib/mysql
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: ./backend
@@ -30,14 +8,11 @@ services:
     restart: always
     ports:
       - "8001:8000"
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - app-network
     environment:
       TZ: "Asia/Seoul"
-      DATABASE_URL: "mysql+pymysql://root:root_password@db:3306/my_database"
+      DATABASE_URL: "mysql+pymysql://mmdmin:Josmin13!@rds-jsm.cn88a22g2qiw.ap-northeast-2.rds.amazonaws.com:3306/my_database"
     volumes:
       - /etc/localtime:/etc/localtime:ro
 
@@ -64,6 +39,3 @@ services:
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  mysql-db-prod-volume:

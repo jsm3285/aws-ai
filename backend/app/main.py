@@ -24,14 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 서버 시작 시 DB 테이블 생성 및 초기 데이터 주입
-models.Base.metadata.create_all(bind=database.engine)
-try:
-    from .import_data import import_csv_to_db
-    import_csv_to_db(force_reset=False)
-except Exception as e:
-    print(f"🔥 초기 데이터 세팅 중 오류 발생 (무시하고 계속 진행): {e}")
-
 # --- 데이터 규격(Schema) ---
 class ProductRegister(BaseModel):
     barcode: str
@@ -394,11 +386,6 @@ def suggest_orders(db: Session = Depends(database.get_db)):
         inventory = get_real_inventory(db, current_user=None) 
         stock_map = {item["id"]: item["stock"] for item in inventory}
 
-        csv_path = 'convenience_store_real_products_4years.csv'
-        df_csv = pd.read_csv(csv_path)
-        df_csv['날짜'] = pd.to_datetime(df_csv['날짜'])
-        df_csv['판매량'] = pd.to_numeric(df_csv['판매량'], errors='coerce').fillna(0)
-
         model_path = "/app/app/ai_model.joblib"
         if not os.path.exists(model_path):
             return {"summary": "AI 모델 파일이 없습니다.", "suggestions": []}
@@ -420,13 +407,13 @@ def suggest_orders(db: Session = Depends(database.get_db)):
                 pred_sales = model.predict(test_input)[0] 
                 curr_stock = stock_map.get(p.id, 0)
 
-                is_high_demand_past = df_csv[
-                    (df_csv['상품명'].str.strip() == p.name.strip()) & 
-                    (df_csv['날짜'].dt.month == tomorrow.month) & 
-                    (df_csv['날짜'].dt.day == tomorrow.day) & 
-                    (df_csv['판매량'] >= 20)
-                ]
-                is_special = not is_high_demand_past.empty
+                is_high_demand_past = db.query(models.SalesHistory).filter(
+                    models.SalesHistory.product_id == p.id,
+                    func.extract('month', models.SalesHistory.date) == tomorrow.month,
+                    func.extract('day', models.SalesHistory.date) == tomorrow.day,
+                    models.SalesHistory.sales_qty >= 20
+                ).first()
+                is_special = is_high_demand_past is not None
 
                 if is_special:
                     if pred_sales > curr_stock:
