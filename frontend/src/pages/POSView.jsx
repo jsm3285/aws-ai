@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getPOSInventory, sellItem } from '../api/inventory';
+import { Html5Qrcode } from 'html5-qrcode';
 
 function POSView() {
   const [inventory, setInventory] = useState([]);
@@ -14,7 +15,14 @@ function POSView() {
 
   const [lastSold, setLastSold] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const inputRef = useRef(null);
+  const scannerRef = useRef(null);
+  const inventoryRef = useRef([]);
+
+  useEffect(() => {
+    inventoryRef.current = inventory;
+  }, [inventory]);
 
   // 재고 현황 불러오기
   const fetchInventory = async () => {
@@ -33,9 +41,43 @@ function POSView() {
     fetchInventory();
   }, []);
 
+  // 글로벌 바코드 스캐너 연동 (키보드 이벤트 감지)
+  useEffect(() => {
+    let barcodeBuffer = '';
+    let lastKeyTime = Date.now();
+
+    const handleKeyDown = (e) => {
+      // 입력 폼 등에서 포커스 중일 때는 무시 (단, 바코드 전용 input은 예외)
+      if (e.target.tagName === 'INPUT' && e.target.id !== 'barcode-input') {
+        return;
+      }
+      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+        return;
+      }
+
+      const currentTime = Date.now();
+      // 일반 타이핑보다 훨씬 빠른 50ms 이내의 입력을 바코드로 간주
+      if (currentTime - lastKeyTime > 50) {
+        barcodeBuffer = '';
+      }
+      lastKeyTime = currentTime;
+
+      if (e.key === 'Enter' && barcodeBuffer.length > 0) {
+        e.preventDefault();
+        addToCart(barcodeBuffer.trim(), 1);
+        barcodeBuffer = '';
+      } else if (e.key.length === 1) {
+        barcodeBuffer += e.key;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [inventory]);
+
   // 장바구니에 상품 담기 로직
   const addToCart = (productId, addQty) => {
-    const product = inventory.find(item => item.id === productId);
+    const product = inventoryRef.current.find(item => item.id === productId);
 
     if (!product) {
       alert("존재하지 않는 상품 바코드입니다.");
@@ -115,6 +157,46 @@ function POSView() {
     setQuantity((prev) => Math.min(Math.max(1, prev + amount), 10));
   };
 
+  const handleCloseCamera = () => {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      scannerRef.current.stop().then(() => {
+        scannerRef.current.clear();
+        setShowCamera(false);
+      }).catch(e => {
+        console.error(e);
+        setShowCamera(false);
+      });
+    } else {
+      setShowCamera(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showCamera) {
+      const html5QrCode = new Html5Qrcode("reader");
+      scannerRef.current = html5QrCode;
+
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          addToCart(decodedText, 1);
+          handleCloseCamera();
+        },
+        (error) => {}
+      ).catch((err) => {
+        console.error(err);
+        alert("카메라 권한을 허용해 주시거나 카메라가 정상 연결되어 있는지 확인해주세요.");
+        setShowCamera(false);
+      });
+    }
+    return () => {
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(() => {});
+      }
+    };
+  }, [showCamera]);
+
   return (
     <div className="flex flex-col h-full p-8 text-white overflow-hidden">
       <header className="mb-8">
@@ -132,9 +214,10 @@ function POSView() {
             <div className="relative z-10 flex flex-col h-full">
 
               {/* 상단: 바코드 퀵 스캔 */}
-              <div className="mb-6 shrink-0">
-                <form onSubmit={handleScan}>
+              <div className="mb-6 shrink-0 flex gap-2">
+                <form onSubmit={handleScan} className="flex-1">
                   <input
+                    id="barcode-input"
                     ref={inputRef}
                     type="text"
                     value={barcode}
@@ -144,6 +227,13 @@ function POSView() {
                     autoFocus
                   />
                 </form>
+                <button
+                  onClick={() => setShowCamera(true)}
+                  className="w-12 h-12 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white transition-colors shrink-0"
+                  title="카메라로 스캔하기"
+                >
+                  <span className="material-symbols-outlined">photo_camera</span>
+                </button>
               </div>
 
               {/* 🌟 수정 포인트 2: 수동 담기 폼을 가로(flex-row)에서 세로(flex-col) 2줄 배치로 변경 */}
@@ -267,6 +357,28 @@ function POSView() {
         </section>
 
       </div>
+
+      {/* 카메라 모달 */}
+      {showCamera && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#1a1b21] border border-indigo-500/30 rounded-3xl p-6 max-w-md w-full flex flex-col items-center">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <span className="material-symbols-outlined text-indigo-400">qr_code_scanner</span>
+              카메라 바코드 스캔
+            </h2>
+            <div className="w-full bg-black rounded-xl overflow-hidden mb-4 border border-white/10">
+              <div id="reader" className="w-full"></div>
+            </div>
+            <button
+              onClick={handleCloseCamera}
+              className="w-full h-12 bg-red-600 hover:bg-red-500 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined">close</span>
+              스캔 취소
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

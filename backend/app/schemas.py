@@ -44,6 +44,7 @@ class SalesHistory(SalesHistoryBase):
 class PurchaseOrderItemBase(BaseModel):
     product_id: str
     order_qty: int
+    reason: Optional[str] = None
 
 class PurchaseOrderCreate(BaseModel):
     items: List[PurchaseOrderItemBase]

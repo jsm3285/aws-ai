@@ -9,7 +9,6 @@ function Sidebar() {
   // INVENTORY 메뉴를 리스트에서 제거했습니다.
   const menus = [
     { name: 'DASHBOARD', path: '/dashboard', icon: 'grid_view' },
-    { name: 'SCAN/REGISTER', path: '/scan', icon: 'qr_code_scanner' },
     { name: 'AI ORDERS', path: '/ai-orders', icon: 'smart_toy' },
     { name: 'ORDER HISTORY', path: '/history', icon: 'history' },
     { name: 'POS 결제', path: '/pos', icon: 'point_of_sale' },
