@@ -83,6 +83,7 @@ class PurchaseOrderItem(Base):
     po_id = Column(Integer, ForeignKey("purchase_orders.id"))
     product_id = Column(String(20), ForeignKey("products.id"))
     order_qty = Column(Integer, default=0)
+    reason = Column(String(255), nullable=True)
 
 class InboundReceipt(Base):
     __tablename__ = "inbound_receipts"

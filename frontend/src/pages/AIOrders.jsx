@@ -44,11 +44,6 @@ function AIOrders() {
   };
 
   const handleOrderSubmit = async () => {
-    if (!isAdmin) {
-      alert("🚨 발주 권한이 없습니다. 점장 계정으로 로그인해주세요.");
-      return;
-    }
-
     const orderItems = recommendations.filter(item => item.suggested_qty > 0);
     if (orderItems.length === 0) {
       alert("발주할 상품 수량이 없습니다.");
@@ -58,8 +53,21 @@ function AIOrders() {
     try {
       const token = localStorage.getItem('token');
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+      
+      if (!isAdmin) {
+        alert("🚨 발주 권한이 없습니다. 점장 계정으로 로그인해주세요.");
+        return;
+      }
 
-      // 1. 카드 등록 확인
+      const payload = {
+        items: orderItems.map(item => ({
+          product_id: item.id,
+          suggested_qty: item.suggested_qty,
+          reason: item.reason
+        }))
+      };
+
+      // Admin - 결제 및 발주
       const cardCheck = await axios.get(`${API_BASE_URL}/api/payments/check-card`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -76,14 +84,6 @@ function AIOrders() {
         return;
       }
 
-      // 2. 실제 결제 및 발주 진행
-      const payload = {
-        items: orderItems.map(item => ({
-          product_id: item.id,
-          suggested_qty: item.suggested_qty
-        }))
-      };
-
       await axios.post(`${API_BASE_URL}/api/orders/pay-and-submit`, payload, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -91,18 +91,16 @@ function AIOrders() {
         }
       });
 
-      // --- [추가/복구] 주문 내역 로컬 스토리지 저장 (History 페이지 연동용) ---
       const newOrderHistoryItem = {
         id: `ORD-${Date.now()}`,
         date: new Date().toLocaleString(),
-        items: orderItems, // 주문한 상품 리스트 전체 저장
+        items: orderItems,
         totalItems: orderItems.length,
         status: 'COMPLETED'
       };
 
       const existingHistory = JSON.parse(localStorage.getItem('order_history') || '[]');
       localStorage.setItem('order_history', JSON.stringify([newOrderHistoryItem, ...existingHistory]));
-      // ------------------------------------------------------------------
 
       alert("✅ 자동 결제 및 발주가 성공적으로 완료되었습니다!");
 
@@ -159,8 +157,11 @@ function AIOrders() {
                   {p.is_special && <span className="px-2 py-0.5 bg-pink-500 text-[10px] font-black rounded-md uppercase animate-pulse">Hot Trend</span>}
                 </div>
                 <p className="text-sm text-indigo-400 font-medium">현재고: {p.current_stock}개 | AI 예측판매: {p.predicted_sales}개</p>
+                {p.reason && (
+                  <p className="text-xs text-indigo-300/70 mt-1 bg-black/20 p-2 rounded-lg border border-white/5 leading-relaxed">{p.reason}</p>
+                )}
               </div>
-              <div className="flex items-center gap-4 bg-black/40 p-2 rounded-2xl border border-white/10">
+              <div className="flex items-center gap-4 bg-black/40 p-2 rounded-2xl border border-white/10 shrink-0">
                 <button onClick={() => adjustQty(p.id, -1)} disabled={!isAdmin} className="w-10 h-10 rounded-xl text-2xl font-bold bg-white/5 hover:bg-white/20">-</button>
                 <span className="text-3xl font-black w-12 text-center text-indigo-400">{p.suggested_qty}</span>
                 <button onClick={() => adjustQty(p.id, 1)} disabled={!isAdmin} className="w-10 h-10 rounded-xl text-2xl font-bold bg-indigo-600 hover:bg-indigo-500">+</button>
@@ -170,11 +171,11 @@ function AIOrders() {
         )}
       </div>
 
-      <footer className="pt-2">
+      <footer className="pt-2 shrink-0">
         <button
           onClick={handleOrderSubmit}
           disabled={!isAdmin}
-          className={`w-full h-20 font-black text-xl rounded-2xl transition-all flex items-center justify-center gap-3 ${isAdmin ? 'bg-gradient-to-r from-indigo-600 to-purple-600 shadow-xl shadow-indigo-600/20 active:scale-[0.98]' : 'bg-white/10 text-gray-500 cursor-not-allowed border border-white/20'}`}
+          className={`w-full h-20 font-black text-xl rounded-2xl transition-all flex items-center justify-center gap-3 shadow-xl active:scale-[0.98] ${isAdmin ? 'bg-gradient-to-r from-indigo-600 to-purple-600 shadow-indigo-600/20' : 'bg-white/10 text-gray-500 cursor-not-allowed border border-white/20 shadow-none'}`}
         >
           <span className="material-symbols-outlined">{isAdmin ? 'credit_card' : 'lock'}</span>
           {isAdmin ? 'AI 제안 수량 결제 및 발주' : '발주 권한 없음 (점장 전용)'}

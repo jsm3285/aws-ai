@@ -39,6 +39,7 @@ class SalesRequest(BaseModel):
 class OrderItem(BaseModel):
     product_id: str
     suggested_qty: int
+    reason: Optional[str] = None
 
 class OrderCreateRequest(BaseModel):
     items: List[OrderItem]
@@ -422,8 +423,10 @@ def suggest_orders(db: Session = Depends(database.get_db)):
                     else:
                         suggest_qty = 0
                     special_count += 1
+                    reason = f"과거 동월/동일에 판매량이 급증(20개 이상)한 트렌드 상품입니다. 예측 판매량({int(pred_sales)}개)을 반영하여 발주를 제안합니다."
                 else:
                     suggest_qty = 15 - curr_stock
+                    reason = f"안전 재고(15개) 미달에 따른 일반 보충 발주입니다. (현재 재고 {curr_stock}개)"
                 
                 suggest_qty = max(0, suggest_qty)
                 suggestions.append({
@@ -432,10 +435,11 @@ def suggest_orders(db: Session = Depends(database.get_db)):
                     "current_stock": curr_stock,
                     "predicted_sales": int(round(float(pred_sales))),
                     "suggested_qty": int(suggest_qty),
-                    "is_special": is_special
+                    "is_special": is_special,
+                    "reason": reason
                 })
             except Exception as e:
-                suggestions.append({"id": p.id, "name": p.name, "current_stock": stock_map.get(p.id, 0), "predicted_sales": 0, "suggested_qty": 5, "is_special": False})
+                suggestions.append({"id": p.id, "name": p.name, "current_stock": stock_map.get(p.id, 0), "predicted_sales": 0, "suggested_qty": 5, "is_special": False, "reason": "오류로 인한 기본 안전 발주량 제안입니다."})
 
         summary = f"오늘은 {now.day}일입니다. 내일({tomorrow.day}일) 발주 전략: "
         if special_count > 0:
@@ -482,7 +486,8 @@ def submit_orders(
             po_item = models.PurchaseOrderItem(
                 po_id=po.id,
                 product_id=item.product_id,
-                order_qty=item.suggested_qty
+                order_qty=item.suggested_qty,
+                reason=item.reason
             )
             db.add(po_item)
 
@@ -532,7 +537,8 @@ def pay_and_submit_orders(
             po_item = models.PurchaseOrderItem(
                 po_id=po.id,
                 product_id=item.product_id,
-                order_qty=item.suggested_qty
+                order_qty=item.suggested_qty,
+                reason=item.reason
             )
             db.add(po_item)
 
