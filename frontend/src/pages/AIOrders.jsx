@@ -78,9 +78,9 @@ function AIOrders() {
       }
 
       const fullCardNum = cardCheck.data.card_number || "";
-      const lastFour = fullCardNum.length >= 4 ? fullCardNum.slice(-4) : "****";
+      const firstFour = fullCardNum.length >= 4 ? fullCardNum.slice(0, 4) : "****";
 
-      if (!window.confirm(`💳 등록된 카드(끝자리: ${lastFour})로\n총 ${orderItems.length}건의 품목을 자동 결제 및 발주하시겠습니까?`)) {
+      if (!window.confirm(`💳 등록된 카드(첫자리: ${firstFour})로\n총 ${orderItems.length}건의 품목을 자동 결제 및 발주하시겠습니까?`)) {
         return;
       }
 
@@ -158,7 +158,19 @@ function AIOrders() {
                 </div>
                 <p className="text-sm text-indigo-400 font-medium">현재고: {p.current_stock}개 | AI 예측판매: {p.predicted_sales}개</p>
                 {p.reason && (
-                  <p className="text-xs text-indigo-300/70 mt-1 bg-black/20 p-2 rounded-lg border border-white/5 leading-relaxed">{p.reason}</p>
+                  <div className="mt-3 bg-[#11131a] p-3 rounded-xl border border-indigo-500/20 flex gap-3 items-start animate-in fade-in">
+                    <div className="p-1.5 bg-indigo-500/20 rounded-lg shrink-0 mt-0.5">
+                      <span className="material-symbols-outlined text-indigo-400 text-sm">{p.insight_icon || 'insights'}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">
+                        {p.insight_type === 'special' ? 'TREND ANALYSIS' : 
+                         p.insight_type === 'promotion' ? 'PROMOTION DETECTED' :
+                         p.insight_type === 'weekend' ? 'WEEKEND PATTERN' : 'STANDARD PREDICTION'}
+                      </span>
+                      <p className="text-xs text-gray-300 leading-relaxed font-medium">{p.reason}</p>
+                    </div>
+                  </div>
                 )}
               </div>
               <div className="flex items-center gap-4 bg-black/40 p-2 rounded-2xl border border-white/10 shrink-0">
