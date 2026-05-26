@@ -79,7 +79,7 @@ function Dashboard() {
   );
 
   return (
-    <div className="space-y-8 p-4 max-h-screen overflow-y-auto">
+    <div className="space-y-8 p-4 max-h-screen overflow-y-auto custom-scrollbar">
       {/* 요약 카드 영역 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="glass-panel p-8 rounded-3xl bg-white/5 border border-white/10 relative overflow-hidden group">

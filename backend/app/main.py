@@ -411,6 +411,14 @@ def suggest_orders(db: Session = Depends(database.get_db)):
         tomorrow_weekday_str = weekdays_kor[tomorrow.weekday()]
         is_weekend = 1 if tomorrow.weekday() >= 5 else 0
 
+        # Bulk fetch high demand past records
+        high_demand_records = db.query(models.SalesHistory.product_id).filter(
+            func.extract('month', models.SalesHistory.date) == tomorrow.month,
+            func.extract('day', models.SalesHistory.date) == tomorrow.day,
+            models.SalesHistory.sales_qty >= 20
+        ).all()
+        high_demand_pids = set([r[0] for r in high_demand_records])
+
         for p in products:
             try:
                 c_id = le_cat.transform([p.category])[0]
@@ -424,13 +432,7 @@ def suggest_orders(db: Session = Depends(database.get_db)):
                 pred_sales = int(round(float(model.predict(test_input)[0])))
                 curr_stock = stock_map.get(p.id, 0)
 
-                is_high_demand_past = db.query(models.SalesHistory).filter(
-                    models.SalesHistory.product_id == p.id,
-                    func.extract('month', models.SalesHistory.date) == tomorrow.month,
-                    func.extract('day', models.SalesHistory.date) == tomorrow.day,
-                    models.SalesHistory.sales_qty >= 20
-                ).first()
-                is_special = is_high_demand_past is not None
+                is_special = p.id in high_demand_pids
 
                 # 디테일한 사유 생성
                 insight_icon = tomorrow_weather["icon"]
@@ -622,21 +624,44 @@ def get_combined_training_data(db: Session = Depends(database.get_db)):
 def get_all_orders(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     """현재 모든 발주서 목록 조회 (최신순)"""
     orders = db.query(models.PurchaseOrder).order_by(models.PurchaseOrder.id.desc()).all()
+    
+    # Bulk fetch products to avoid N+1
+    all_products = db.query(models.Product).all()
+    product_map = {p.id: p.name for p in all_products}
+    
+    # Bulk fetch order items
+    order_ids = [o.id for o in orders]
+    all_items = db.query(models.PurchaseOrderItem).filter(models.PurchaseOrderItem.po_id.in_(order_ids)).all() if order_ids else []
+    
+    from collections import defaultdict
+    items_by_order = defaultdict(list)
+    for item in all_items:
+        items_by_order[item.po_id].append(item)
+        
+    # Bulk fetch receipts
+    all_receipts = db.query(models.InboundReceipt).filter(models.InboundReceipt.po_id.in_(order_ids)).all() if order_ids else []
+    receipt_by_po = {r.po_id: r for r in all_receipts}
+    
+    receipt_ids = [r.id for r in all_receipts]
+    all_r_items = db.query(models.InboundReceiptItem).filter(models.InboundReceiptItem.receipt_id.in_(receipt_ids)).all() if receipt_ids else []
+    
+    r_items_by_receipt = defaultdict(list)
+    for ri in all_r_items:
+        r_items_by_receipt[ri.receipt_id].append(ri)
+
     for order in orders:
-        items = db.query(models.PurchaseOrderItem).filter(models.PurchaseOrderItem.po_id == order.id).all()
+        items = items_by_order.get(order.id, [])
         
         receipt_items = {}
         if order.status == "RECEIVED":
-            receipt = db.query(models.InboundReceipt).filter(models.InboundReceipt.po_id == order.id).first()
+            receipt = receipt_by_po.get(order.id)
             if receipt:
-                r_items = db.query(models.InboundReceiptItem).filter(models.InboundReceiptItem.receipt_id == receipt.id).all()
+                r_items = r_items_by_receipt.get(receipt.id, [])
                 for ri in r_items:
                     receipt_items[ri.product_id] = ri
                     
         for item in items:
-            product = db.query(models.Product).filter(models.Product.id == item.product_id).first()
-            item.product_name = product.name if product else "알 수 없음"
-            
+            item.product_name = product_map.get(item.product_id, "알 수 없음")
             if item.product_id in receipt_items:
                 item.received_qty = receipt_items[item.product_id].received_qty
                 item.expiration_date = receipt_items[item.product_id].expiration_date
@@ -739,12 +764,19 @@ def get_pos_inventory(
     products = db.query(models.Product).all()
     today = date_type.today()
     
+    # Bulk fetch lots
+    all_lots = db.query(models.InventoryLots).filter(models.InventoryLots.quantity > 0).all()
+    from collections import defaultdict
+    lots_by_product = defaultdict(list)
+    for lot in all_lots:
+        lots_by_product[lot.product_id].append(lot)
+        
+    for p_id in lots_by_product:
+        lots_by_product[p_id].sort(key=lambda x: x.expiration_date)
+    
     result = []
     for p in products:
-        lots = db.query(models.InventoryLots).filter(
-            models.InventoryLots.product_id == p.id,
-            models.InventoryLots.quantity > 0
-        ).order_by(models.InventoryLots.expiration_date.asc()).all()
+        lots = lots_by_product.get(p.id, [])
         
         if not lots:
             continue

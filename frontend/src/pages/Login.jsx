@@ -4,7 +4,7 @@ import axios from 'axios';
 
 function Login() {
   const navigate = useNavigate();
-  
+
   // 1. 상태 관리 (입력값, 로딩, 에러 메시지)
   const [formData, setFormData] = useState({ userId: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +21,7 @@ function Login() {
   // 2. 로그인 처리 함수
   const handleLogin = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.userId || !formData.password) {
       setError("아이디와 비밀번호를 모두 입력해주세요.");
       return;
@@ -49,7 +49,7 @@ function Login() {
         localStorage.setItem('username', formData.userId);
 
         console.log(`${response.data.full_name}님 환영합니다! (권한: ${response.data.role})`);
-        
+
         // 대시보드로 이동
         navigate('/dashboard');
       }
@@ -82,31 +82,31 @@ function Login() {
         <form className="space-y-6" onSubmit={handleLogin}>
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">User ID</label>
-            <input 
+            <input
               name="userId"
               value={formData.userId}
               onChange={handleChange}
-              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-5 text-white focus:ring-2 focus:ring-indigo-500/50 transition-all outline-none placeholder:text-gray-600" 
-              placeholder="아이디 입력" 
-              type="text" 
+              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-5 text-white focus:ring-2 focus:ring-indigo-500/50 transition-all outline-none placeholder:text-gray-600"
+              placeholder="아이디 입력"
+              type="text"
               autoComplete="username"
             />
           </div>
 
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Password</label>
-            <input 
+            <input
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-5 text-white focus:ring-2 focus:ring-indigo-500/50 transition-all outline-none placeholder:text-gray-600" 
-              placeholder="비밀번호 입력" 
-              type="password" 
+              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-5 text-white focus:ring-2 focus:ring-indigo-500/50 transition-all outline-none placeholder:text-gray-600"
+              placeholder="비밀번호 입력"
+              type="password"
               autoComplete="current-password"
             />
           </div>
 
-          <button 
+          <button
             type="submit"
             disabled={isLoading}
             className={`w-full h-16 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white font-black rounded-2xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
