@@ -199,12 +199,12 @@ function POSView() {
 
   return (
     <div className="flex flex-col h-full p-8 text-white overflow-hidden">
-      <header className="mb-8">
+      <header className="mb-8 shrink-0">
         <h1 className="text-4xl font-black tracking-tighter">Nexus POS</h1>
         <p className="text-gray-400">선입선출(FIFO) 기반 다중 상품 결제 및 재고 스펙트럼</p>
       </header>
 
-      <div className="flex gap-8 h-full min-h-0">
+      <div className="flex-1 min-h-0 flex gap-8">
 
         {/* 🌟 수정 포인트 1: 왼쪽 패널을 w-1/3에서 넓이가 고정된 w-[400px]로 변경하여 찌그러짐 방지 */}
         <section className="w-[400px] shrink-0 flex flex-col gap-6">
@@ -269,7 +269,7 @@ function POSView() {
               <div className="h-px bg-white/10 w-full mb-4 shrink-0"></div>
 
               {/* 하단: 장바구니(Cart) 목록 영역 */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar mb-4 pr-2 space-y-2">
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar mb-4 pr-2 space-y-2">
                 <h2 className="text-sm font-bold text-gray-400 mb-2 flex items-center gap-2">
                   <span className="material-symbols-outlined text-base">shopping_cart</span>
                   장바구니 목록 ({cart.length}종)
@@ -320,7 +320,7 @@ function POSView() {
         </section>
 
         {/* 오른쪽: 재고 에너지 바(Health Spectrum) 리스트 (남은 영역 꽉 채우기) */}
-        <section className="flex-1 glass-panel rounded-3xl p-8 bg-white/5 border border-white/10 overflow-y-auto custom-scrollbar">
+        <section className="flex-1 min-h-0 glass-panel rounded-3xl p-8 bg-white/5 border border-white/10 overflow-y-auto custom-scrollbar">
           <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
             <span className="material-symbols-outlined text-gray-400">stacked_bar_chart</span>
             실시간 재고 스펙트럼

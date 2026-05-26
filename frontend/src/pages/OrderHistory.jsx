@@ -99,14 +99,14 @@ function OrderHistory() {
 
   return (
     <div className="flex flex-col h-full p-6 text-white overflow-hidden">
-      <header className="mb-8">
+      <header className="mb-8 shrink-0">
         <h1 className="text-4xl font-black tracking-tighter">Inbound Inspection</h1>
         <p className="text-gray-400">발주한 물품의 수량과 유통기한을 검수하고 재고에 반영합니다.</p>
       </header>
 
-      <div className="flex gap-6 h-full overflow-hidden">
+      <div className="flex-1 min-h-0 flex gap-6 overflow-hidden">
         {/* 왼쪽: 입고 대기열 (발주 목록) */}
-        <div className="w-1/3 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+        <div className="w-1/3 min-h-0 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
           <h2 className="font-bold text-xl mb-4 text-gray-300">입고 대기열 (Pending)</h2>
           {orders.length === 0 ? (
             <div className="text-center py-20 opacity-30 border-2 border-dashed border-white/10 rounded-3xl">
@@ -177,7 +177,7 @@ function OrderHistory() {
               </div>
 
               {/* 검수 테이블 */}
-              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
                 <table className="w-full text-left text-sm">
                   <thead className="text-gray-400 sticky top-0 bg-[#1e1e1e] z-10">
                     <tr>

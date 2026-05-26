@@ -5,7 +5,7 @@ function Topbar() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [activePanel, setActivePanel] = useState('');
   const [username, setUsername] = useState(localStorage.getItem('username') || '');
-  
+
   // 1. 초기 상태값 설정 (userRole과 role 모두 고려)
   const [userRole, setUserRole] = useState(
     localStorage.getItem('userRole') || localStorage.getItem('role') || 'staff'
@@ -43,9 +43,9 @@ function Topbar() {
 
   // ⭐️ 2. isAdmin 판별 로직 강화 (다른 곳에서 쓰이는 방식 포함)
   // userRole 상태값 또는 로컬 스토리지의 두 가지 키값 중 하나라도 'admin'이면 점장으로 인식
-  const isAdmin = 
-    userRole?.toLowerCase() === 'admin' || 
-    localStorage.getItem('userRole')?.toLowerCase() === 'admin' || 
+  const isAdmin =
+    userRole?.toLowerCase() === 'admin' ||
+    localStorage.getItem('userRole')?.toLowerCase() === 'admin' ||
     localStorage.getItem('role')?.toLowerCase() === 'admin';
 
   const displayRole = isAdmin ? 'System Admin' : 'Staff';
@@ -61,13 +61,13 @@ function Topbar() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const profile = response.data;
-        
+
         // 서버에서 받아온 실제 역할
         const realRole = profile.role || 'staff';
 
         setUsername(profile.username || '');
         setUserRole(realRole);
-        
+
         setAccountForm((prev) => ({
           ...prev,
           name: profile.full_name || prev.name,
