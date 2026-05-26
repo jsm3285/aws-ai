@@ -2,7 +2,7 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from datetime import datetime, date
 from .database import SessionLocal, engine
-from .models import Base, Product, SalesHistory, InventoryLots, User, Card
+from .models import Base, Product, SalesHistory, InventoryLots, User, Card, PurchaseOrder, PurchaseOrderItem, InboundReceipt, InboundReceiptItem
 from passlib.context import CryptContext
 
 # 비밀번호 암호화 설정
