@@ -79,54 +79,54 @@ function Dashboard() {
   );
 
   return (
-    <div className="space-y-8 p-4 max-h-screen overflow-y-auto custom-scrollbar">
+    <div className="space-y-4 2xl:space-y-8 p-2 2xl:p-4 flex-1 min-h-0 flex flex-col custom-scrollbar overflow-y-auto">
       {/* 요약 카드 영역 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass-panel p-8 rounded-3xl bg-white/5 border border-white/10 relative overflow-hidden group">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 2xl:gap-6 shrink-0">
+        <div className="glass-panel p-4 2xl:p-8 rounded-3xl bg-white/5 border border-white/10 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <span className="material-symbols-outlined text-6xl text-white">payments</span>
           </div>
           <p className="text-gray-400 text-xs font-bold uppercase mb-2 tracking-widest">오늘의 실시간 매출액</p>
-          <h2 className="text-4xl font-black text-white">₩{stats.expected_sales.toLocaleString()}</h2>
+          <h2 className="text-3xl lg:text-4xl font-black text-white">₩{stats.expected_sales.toLocaleString()}</h2>
         </div>
 
-        <div className="glass-panel p-8 rounded-3xl bg-white/5 border-l-4 border-red-500 relative overflow-hidden group">
+        <div className="glass-panel p-4 2xl:p-8 rounded-3xl bg-white/5 border-l-4 border-red-500 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <span className="material-symbols-outlined text-6xl text-white">priority_high</span>
           </div>
           <p className="text-gray-400 text-xs font-bold uppercase mb-2 text-red-400 tracking-widest">재고 부족 알림</p>
-          <h2 className="text-4xl font-black text-white">{stats.warning_count}<span className="text-sm font-normal text-gray-500 ml-2">건</span></h2>
+          <h2 className="text-3xl lg:text-4xl font-black text-white">{stats.warning_count}<span className="text-sm font-normal text-gray-500 ml-2">건</span></h2>
         </div>
 
-        <div className="glass-panel p-8 rounded-3xl bg-white/5 border border-white/10 relative overflow-hidden group">
+        <div className="glass-panel p-4 2xl:p-8 rounded-3xl bg-white/5 border border-white/10 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <span className="material-symbols-outlined text-6xl text-white">inventory_2</span>
           </div>
           <p className="text-gray-400 text-xs font-bold uppercase mb-2 tracking-widest">전체 분석 상품</p>
-          <h2 className="text-4xl font-black text-white">{stats.total_products}<span className="text-sm font-normal text-gray-500 ml-2">종</span></h2>
+          <h2 className="text-3xl lg:text-4xl font-black text-white">{stats.total_products}<span className="text-sm font-normal text-gray-500 ml-2">종</span></h2>
         </div>
       </div>
 
       {/* 메인 테이블 영역 */}
-      <div className="glass-panel rounded-3xl bg-white/5 border border-white/10 overflow-hidden shadow-2xl flex flex-col">
-        <div className="p-8 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0">
+      <div className="glass-panel rounded-3xl bg-white/5 border border-white/10 overflow-hidden shadow-2xl flex flex-col flex-1 min-h-0">
+        <div className="p-4 2xl:p-8 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0">
           <div>
             <h3 className="text-xl font-bold text-white mb-1">재고 현황 및 관리</h3>
             <p className="text-xs text-gray-500 font-medium">실시간 데이터가 30초마다 자동 동기화됩니다.</p>
           </div>
-          <div className="relative group">
+          <div className="relative group w-full md:w-auto">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors">search</span>
             <input
               type="text"
               placeholder="품목명, 코드, 카테고리 검색..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-3 text-sm text-white outline-none w-80 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+              className="bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-3 text-sm text-white outline-none w-full md:w-80 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all"
             />
           </div>
         </div>
 
-        <div className="overflow-x-auto overflow-y-auto max-h-[500px] scrollbar-thin">
+        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto scrollbar-thin">
           <table className="w-full text-left text-white border-collapse">
             <thead className="sticky top-0 z-20 bg-[#121212] shadow-md text-[10px] uppercase text-gray-400 font-black tracking-[0.2em]">
               <tr>

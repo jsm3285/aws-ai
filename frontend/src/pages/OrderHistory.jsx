@@ -98,9 +98,9 @@ function OrderHistory() {
   };
 
   return (
-    <div className="flex flex-col h-full p-6 text-white overflow-hidden">
-      <header className="mb-8 shrink-0">
-        <h1 className="text-4xl font-black tracking-tighter">Inbound Inspection</h1>
+    <div className="flex flex-col h-full p-3 2xl:p-6 text-white overflow-hidden">
+      <header className="mb-4 2xl:mb-8 shrink-0">
+        <h1 className="text-3xl 2xl:text-4xl font-black tracking-tighter">Inbound Inspection</h1>
         <p className="text-gray-400">발주한 물품의 수량과 유통기한을 검수하고 재고에 반영합니다.</p>
       </header>
 
