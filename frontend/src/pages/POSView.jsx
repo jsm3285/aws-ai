@@ -198,8 +198,8 @@ function POSView() {
   }, [showCamera]);
 
   return (
-    <div className="flex flex-col h-full p-8 text-white overflow-hidden">
-      <header className="mb-8 shrink-0">
+    <div className="flex flex-col h-full p-4 2xl:p-8 text-white overflow-hidden">
+      <header className="mb-4 2xl:mb-8 shrink-0">
         <h1 className="text-4xl font-black tracking-tighter">Nexus POS</h1>
         <p className="text-gray-400">선입선출(FIFO) 기반 다중 상품 결제 및 재고 스펙트럼</p>
       </header>
@@ -207,14 +207,14 @@ function POSView() {
       <div className="flex-1 min-h-0 flex gap-8">
 
         {/* 🌟 수정 포인트 1: 왼쪽 패널을 w-1/3에서 넓이가 고정된 w-[400px]로 변경하여 찌그러짐 방지 */}
-        <section className="w-[400px] shrink-0 flex flex-col gap-6">
-          <div className="glass-panel rounded-3xl p-6 bg-black/40 border border-white/10 flex-1 flex flex-col relative overflow-hidden">
+        <section className="w-[400px] shrink-0 flex flex-col gap-4">
+          <div className="glass-panel rounded-3xl p-4 bg-black/40 border border-white/10 flex-1 flex flex-col relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-indigo-500/10 pointer-events-none"></div>
 
             <div className="relative z-10 flex flex-col h-full">
 
               {/* 상단: 바코드 퀵 스캔 */}
-              <div className="mb-6 shrink-0 flex gap-2">
+              <div className="mb-4 shrink-0 flex gap-2">
                 <form onSubmit={handleScan} className="flex-1">
                   <input
                     id="barcode-input"
@@ -237,7 +237,7 @@ function POSView() {
               </div>
 
               {/* 🌟 수정 포인트 2: 수동 담기 폼을 가로(flex-row)에서 세로(flex-col) 2줄 배치로 변경 */}
-              <div className="mb-6 shrink-0">
+              <div className="mb-4 shrink-0">
                 <form onSubmit={handleManualAdd} className="flex flex-col gap-3">
                   {/* 1줄: 상품 선택 창 */}
                   <select
@@ -320,7 +320,7 @@ function POSView() {
         </section>
 
         {/* 오른쪽: 재고 에너지 바(Health Spectrum) 리스트 (남은 영역 꽉 채우기) */}
-        <section className="flex-1 min-h-0 glass-panel rounded-3xl p-8 bg-white/5 border border-white/10 overflow-y-auto custom-scrollbar">
+        <section className="flex-1 min-h-0 glass-panel rounded-3xl p-6 bg-white/5 border border-white/10 overflow-y-auto custom-scrollbar">
           <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
             <span className="material-symbols-outlined text-gray-400">stacked_bar_chart</span>
             실시간 재고 스펙트럼

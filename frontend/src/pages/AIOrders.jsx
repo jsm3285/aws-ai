@@ -172,14 +172,21 @@ function AIOrders() {
   }
 
   return (
-    <div className="flex flex-col h-full max-h-screen overflow-hidden p-5 gap-4 text-white">
-      <header className="shrink-0">
-        <h1 className="text-3xl font-black mb-1 tracking-tighter">AI 스마트 발주 시스템</h1>
-        <p className="text-gray-400 text-xs">실시간 재고와 AI 예측 데이터를 기반으로 발주를 제안합니다.</p>
+    <div className="flex flex-col h-full max-h-screen overflow-hidden p-3 2xl:p-5 gap-3 2xl:gap-4 text-white">
+      <header className="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-black flex items-center gap-2">
+            <span className="material-symbols-outlined text-indigo-400 text-3xl lg:text-4xl">smart_toy</span>
+            AI 스마트 발주 제안
+          </h1>
+          <p className="text-gray-400 text-xs lg:text-sm mt-1">
+            지난 4년간의 기상청 날씨 데이터, 지역 행사, 요일별 판매 패턴을 딥러닝(XGBoost)으로 분석하여 오늘 가장 필요한 발주량을 핀포인트로 예측합니다.
+          </p>
+        </div>
       </header>
 
       {summary && (
-        <div className="shrink-0 bg-indigo-600/20 border border-indigo-500/30 p-4 rounded-2xl animate-in fade-in slide-in-from-top-4 duration-700">
+        <div className="shrink-0 glass-panel p-3 lg:p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 bg-indigo-500 rounded-lg shadow-lg shadow-indigo-500/50">
               <span className="material-symbols-outlined text-white block text-sm">psychology</span>
