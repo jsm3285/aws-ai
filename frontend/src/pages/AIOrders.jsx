@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const AILoadingScreen = () => {
@@ -49,6 +50,7 @@ const AILoadingScreen = () => {
 };
 
 function AIOrders() {
+  const navigate = useNavigate();
   const [recommendations, setRecommendations] = useState([]);
   const [summary, setSummary] = useState('');
   const [loading, setLoading] = useState(true);
@@ -156,6 +158,9 @@ function AIOrders() {
       setSummary('');
       localStorage.removeItem('ai_recommendations');
       localStorage.removeItem('ai_summary');
+
+      // 입고대기열 페이지로 리다이렉트
+      navigate('/history');
 
     } catch (err) {
       handleRequestError(err, "발주 처리");
