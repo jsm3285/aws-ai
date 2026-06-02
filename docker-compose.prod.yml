@@ -23,7 +23,7 @@ services:
       args:
         # 빌드 시점에 AWS IP/도메인을 넘겨줄 수 있습니다.
         # 기본값으로 localhost:8001을 사용하지만 배포 시 오버라이드 가능
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8001}
+        VITE_API_URL: http://3.38.98.220:8001
     image: jsm3285/prj_all:ive_frontend_lc_${VERSION:-latest}
     container_name: react-frontend-prod
     restart: always
