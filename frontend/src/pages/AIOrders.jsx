@@ -21,7 +21,7 @@ const AILoadingScreen = () => {
   return (
     <div className="flex flex-col items-center justify-center h-full text-white gap-10 rounded-2xl relative overflow-hidden flex-1 min-h-0 bg-black/20 border border-white/5">
       <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
-      
+
       <div className="relative flex items-center justify-center z-10 scale-125 mt-8">
         <div className="absolute w-32 h-32 rounded-full border-y-2 border-indigo-500/30 border-l-2 border-l-indigo-500 animate-[spin_3s_linear_infinite] shadow-[0_0_20px_rgba(99,102,241,0.2)]"></div>
         <div className="absolute w-24 h-24 rounded-full border-x-2 border-purple-500/30 border-t-2 border-t-purple-500 animate-[spin_2s_linear_infinite_reverse]"></div>
@@ -30,7 +30,7 @@ const AILoadingScreen = () => {
           <span className="material-symbols-outlined text-2xl text-indigo-300">psychology</span>
         </div>
       </div>
-      
+
       <div className="flex flex-col items-center gap-4 z-10 mb-8">
         <div className="flex items-center gap-3 bg-indigo-950/50 px-5 py-2.5 rounded-full border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]">
           <span className="material-symbols-outlined text-indigo-400 text-sm animate-spin" style={{ animationDuration: '3s' }}>memory</span>
@@ -193,36 +193,36 @@ function AIOrders() {
         ) : (
           recommendations.map((p) => (
             <div key={p.id} className={`p-4 rounded-2xl border transition-all flex items-center justify-between ${p.is_special ? 'bg-gradient-to-br from-indigo-900/40 to-purple-900/40 border-indigo-500/50 shadow-lg shadow-indigo-500/10' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-bold text-lg">{p.name}</h4>
-                    {p.is_special && <span className="px-2 py-0.5 bg-pink-500 text-[9px] font-black rounded-md uppercase animate-pulse">Hot Trend</span>}
-                  </div>
-                  <p className="text-xs text-indigo-400 font-medium">현재고: {p.current_stock}개 | AI 예측판매: {p.predicted_sales}개</p>
-                  {p.reason && (
-                    <div className="mt-3 bg-[#11131a] p-3 rounded-xl border border-indigo-500/20 flex gap-3 items-start animate-in fade-in">
-                      <div className="p-1.5 bg-indigo-500/20 rounded-lg shrink-0 mt-0.5">
-                        <span className="material-symbols-outlined text-indigo-400 text-sm">{p.insight_icon || 'insights'}</span>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">
-                          {p.insight_type === 'special' ? 'TREND ANALYSIS' :
-                            p.insight_type === 'promotion' ? 'PROMOTION DETECTED' :
-                              p.insight_type === 'weekend' ? 'WEEKEND PATTERN' : 'STANDARD PREDICTION'}
-                        </span>
-                        <p className="text-xs text-gray-300 leading-relaxed font-medium">{p.reason}</p>
-                      </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 className="font-bold text-lg">{p.name}</h4>
+                  {p.is_special && <span className="px-2 py-0.5 bg-pink-500 text-[9px] font-black rounded-md uppercase animate-pulse">Hot Trend</span>}
+                </div>
+                <p className="text-xs text-indigo-400 font-medium">현재고: {p.current_stock}개 | AI 예측판매: {p.predicted_sales}개</p>
+                {p.reason && (
+                  <div className="mt-3 bg-[#11131a] p-3 rounded-xl border border-indigo-500/20 flex gap-3 items-start animate-in fade-in">
+                    <div className="p-1.5 bg-indigo-500/20 rounded-lg shrink-0 mt-0.5">
+                      <span className="material-symbols-outlined text-indigo-400 text-sm">{p.insight_icon || 'insights'}</span>
                     </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 bg-black/40 p-1.5 rounded-xl border border-white/10 shrink-0">
-                  <button onClick={() => adjustQty(p.id, -1)} disabled={!isAdmin} className="w-8 h-8 rounded-lg text-xl font-bold bg-white/5 hover:bg-white/20">-</button>
-                  <span className="text-2xl font-black w-10 text-center text-indigo-400">{p.suggested_qty}</span>
-                  <button onClick={() => adjustQty(p.id, 1)} disabled={!isAdmin} className="w-8 h-8 rounded-lg text-xl font-bold bg-indigo-600 hover:bg-indigo-500">+</button>
-                </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">
+                        {p.insight_type === 'special' ? 'TREND ANALYSIS' :
+                          p.insight_type === 'promotion' ? 'PROMOTION DETECTED' :
+                            p.insight_type === 'weekend' ? 'WEEKEND PATTERN' : 'STANDARD PREDICTION'}
+                      </span>
+                      <p className="text-xs text-gray-300 leading-relaxed font-medium">{p.reason}</p>
+                    </div>
+                  </div>
+                )}
               </div>
-            ))
-          )}
+              <div className="flex items-center gap-3 bg-black/40 p-1.5 rounded-xl border border-white/10 shrink-0">
+                <button onClick={() => adjustQty(p.id, -1)} disabled={!isAdmin} className="w-8 h-8 rounded-lg text-xl font-bold bg-white/5 hover:bg-white/20">-</button>
+                <span className="text-2xl font-black w-10 text-center text-indigo-400">{p.suggested_qty}</span>
+                <button onClick={() => adjustQty(p.id, 1)} disabled={!isAdmin} className="w-8 h-8 rounded-lg text-xl font-bold bg-indigo-600 hover:bg-indigo-500">+</button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <footer className="pt-2 shrink-0">
