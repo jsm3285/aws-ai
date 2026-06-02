@@ -6,7 +6,7 @@ function Login() {
   const navigate = useNavigate();
 
   // 1. 상태 관리 (입력값, 로딩, 에러 메시지)
-  const [formData, setFormData] = useState({ userId: '', password: '' });
+  const [formData, setFormData] = useState({ userId: 'admin', password: '1234' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');

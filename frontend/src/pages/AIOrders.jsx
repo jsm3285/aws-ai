@@ -1,6 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+const AILoadingScreen = () => {
+  const [msgIdx, setMsgIdx] = useState(0);
+  const messages = [
+    "INITIALIZING NEURAL CORES...",
+    "ANALYZING PAST SALES DATA...",
+    "PROCESSING WEATHER CORRELATIONS...",
+    "EVALUATING PROMOTION IMPACTS...",
+    "GENERATING PREDICTIVE MODELS...",
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMsgIdx((prev) => (prev + 1) % messages.length);
+    }, 800);
+    return () => clearInterval(timer);
+  }, [messages.length]);
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-white gap-10 rounded-2xl relative overflow-hidden flex-1 min-h-0 bg-black/20 border border-white/5">
+      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
+      
+      <div className="relative flex items-center justify-center z-10 scale-125 mt-8">
+        <div className="absolute w-32 h-32 rounded-full border-y-2 border-indigo-500/30 border-l-2 border-l-indigo-500 animate-[spin_3s_linear_infinite] shadow-[0_0_20px_rgba(99,102,241,0.2)]"></div>
+        <div className="absolute w-24 h-24 rounded-full border-x-2 border-purple-500/30 border-t-2 border-t-purple-500 animate-[spin_2s_linear_infinite_reverse]"></div>
+        <div className="absolute w-16 h-16 rounded-full border-y-2 border-cyan-500/30 border-b-2 border-b-cyan-500 animate-[spin_1s_linear_infinite]"></div>
+        <div className="w-10 h-10 flex items-center justify-center bg-indigo-500/20 rounded-full animate-pulse shadow-[0_0_15px_rgba(99,102,241,0.5)]">
+          <span className="material-symbols-outlined text-2xl text-indigo-300">psychology</span>
+        </div>
+      </div>
+      
+      <div className="flex flex-col items-center gap-4 z-10 mb-8">
+        <div className="flex items-center gap-3 bg-indigo-950/50 px-5 py-2.5 rounded-full border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]">
+          <span className="material-symbols-outlined text-indigo-400 text-sm animate-spin" style={{ animationDuration: '3s' }}>memory</span>
+          <p className="text-sm font-bold font-mono text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-cyan-300">
+            {messages[msgIdx]}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="w-1.5 h-1.5 rounded-full bg-indigo-500/80 animate-bounce" style={{ animationDelay: `${i * 150}ms` }}></div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function AIOrders() {
   const [recommendations, setRecommendations] = useState([]);
   const [summary, setSummary] = useState('');
@@ -116,12 +163,7 @@ function AIOrders() {
   };
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-white gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-        <p className="text-xl font-bold font-mono">AI ANALYZING PAST DATA...</p>
-      </div>
-    );
+    return <AILoadingScreen />;
   }
 
   return (
