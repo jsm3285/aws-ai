@@ -166,7 +166,7 @@ function Dashboard() {
             </div>
 
             {/* 범례 + 검색창: flex-wrap으로 작은 화면에서 줄바꿈 허용 */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               {/* 상태별 색상 범례 */}
               <div className="flex flex-wrap gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-black/30 px-3 py-2 rounded-xl border border-white/5 shrink-0">
                 <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>위험 (5개 이하)</div>
@@ -175,7 +175,7 @@ function Dashboard() {
               </div>
 
               {/* ✅ 검색바: 고정 너비 제거 → flex-1 + min-w로 남은 공간 유동적으로 채움 */}
-              <div className="relative group flex-1 min-w-[180px]">
+              <div className="relative group w-full sm:w-60 md:w-64 xl:w-80 ml-auto">
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors">search</span>
                 <input
                   type="text"
