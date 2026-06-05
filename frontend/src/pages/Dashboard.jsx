@@ -93,7 +93,6 @@ function Dashboard() {
   );
 
   return (
-    /* 🌟 패치포인트 1: 본문 컨테이너 자체에만 부드러운 스크롤을 주고, 강제 너비 고정을 제거하여 유연하게 반응하도록 수정 */
     <div className="w-full h-full overflow-y-auto overflow-x-hidden p-3 xl:p-5 2xl:p-8 custom-scrollbar">
 
       <div className="w-full flex flex-col gap-6 pb-12">
@@ -164,14 +163,12 @@ function Dashboard() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
-              {/* 상태별 색상 범례 가이드 */}
               <div className="flex gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-black/30 px-3 py-2 rounded-xl border border-white/5 shrink-0">
                 <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>위험 (5개 이하)</div>
                 <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-yellow-500 shadow-[0_0_5px_rgba(234,179,8,0.8)]"></div>경고 (6~9개)</div>
                 <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]"></div>안전 (10개 이상)</div>
               </div>
 
-              {/* 검색 바 */}
               <div className="relative group w-full sm:w-auto">
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors">search</span>
                 <input
@@ -185,16 +182,16 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* 🌟 패치포인트 2: 테이블 부모 레이아웃에 overflow-x-auto를 주어 화면 너비가 좁아지면 가로 스크롤바가 유연하게 생기도록 설계 */}
-          <div className="w-full overflow-x-auto scrollbar-thin">
-            {/* 테이블 자체의 최소 너비를 설정하여, 작은 화면에서도 내부 열들이 뭉개지지 않고 가로 스크롤되도록 고정 */}
-            <table className="w-full text-left text-white border-collapse min-w-[950px]">
+          {/* 🌟 패치포인트 1: 패딩 가로폭 최적화 및 880px 마지노선 수축 한계 조율 */}
+          <div className="w-full overflow-x-auto scrollbar-thin pr-1">
+            {/* 🌟 패치포인트 2: 미세 압축을 유도하여 1280px 노트북에서도 잘림을 완벽 차단 */}
+            <table className="w-full text-left text-white border-collapse min-w-[880px]">
               <thead className="bg-[#121212] shadow-md text-[10px] uppercase text-gray-400 font-black tracking-[0.2em]">
                 <tr>
-                  <th className="px-6 py-5">품목 정보</th>
-                  <th className="px-6 py-5">카테고리</th>
-                  <th className="px-6 py-5 text-left w-[340px]">현재 재고 스펙트럼 (50칸 고정)</th>
-                  <th className="px-6 py-5 text-center">상태</th>
+                  <th className="px-5 py-5">품목 정보</th>
+                  <th className="px-4 py-5">카테고리</th>
+                  <th className="px-4 py-5 text-left w-[320px]">현재 재고 스펙트럼 (50칸 고정)</th>
+                  <th className="px-4 py-5 text-center">상태</th>
                   <th className="px-6 py-5 text-center">관리 액션</th>
                 </tr>
               </thead>
@@ -208,16 +205,16 @@ function Dashboard() {
 
                     return (
                       <tr key={item.id} className="hover:bg-white/5 transition-all group">
-                        <td className="px-6 py-6">
+                        <td className="px-5 py-5">
                           <p className="font-bold text-sm group-hover:text-indigo-300 transition-colors">{item.name}</p>
                           <p className="text-[10px] text-gray-500 font-mono mt-0.5">ID: {item.id}</p>
                         </td>
-                        <td className="px-6 py-6">
+                        <td className="px-4 py-5">
                           <span className="text-xs text-gray-400 bg-white/5 px-2 py-1 rounded-md border border-white/5">{item.category}</span>
                         </td>
 
-                        <td className="px-6 py-6">
-                          <div className="flex flex-col gap-1.5 w-full max-w-[280px]">
+                        <td className="px-4 py-5">
+                          <div className="flex flex-col gap-1.5 w-full max-w-[260px]">
                             <div className="flex justify-between items-baseline">
                               <div className="flex gap-2 text-[10px] font-mono opacity-80">
                                 {redQty > 0 && <span className="text-red-400">🔴 {redQty}</span>}
@@ -267,7 +264,7 @@ function Dashboard() {
                           </div>
                         </td>
 
-                        <td className="px-6 py-6">
+                        <td className="px-4 py-5">
                           <div className={`mx-auto w-fit px-3 py-1 rounded-full text-[9px] font-black tracking-tighter border ${totalQty === 0 ? statusStyles.OUT_OF_STOCK :
                             totalQty <= 5 ? "bg-red-500/10 text-red-400 border-red-500/20" :
                               statusStyles[item.status]
@@ -275,10 +272,10 @@ function Dashboard() {
                             {totalQty === 0 ? 'OUT OF STOCK' : totalQty <= 5 ? 'CRITICAL WARNING' : item.status.replace('_', ' ')}
                           </div>
                         </td>
-                        <td className="px-6 py-6 text-center">
+                        <td className="px-6 py-5 text-center">
                           <button
                             onClick={() => handleSell(item.id, item.name)}
-                            className="group/btn relative px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl text-[10px] font-black hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-2 mx-auto"
+                            className="group/btn relative px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl text-[10px] font-black hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-2 mx-auto shrink-0"
                           >
                             <span className="material-symbols-outlined text-sm">remove_shopping_cart</span>
                             임의 판매
