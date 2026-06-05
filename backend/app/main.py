@@ -377,6 +377,75 @@ def get_dashboard_stats(
         "categories_count": len(set(item["category"] for item in inventory))
     }
 
+@app.get("/api/dashboard/sales-trend")
+def get_sales_trend(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    # 1. 판매 데이터가 존재하는 최근 7 영업일 날짜 조회
+    recent_dates = db.query(models.SalesHistory.date)\
+        .group_by(models.SalesHistory.date)\
+        .order_by(models.SalesHistory.date.desc())\
+        .limit(7).all()
+    
+    target_dates = sorted([d[0] for d in recent_dates])
+    
+    if not target_dates:
+        return {"trend": [], "top_products": [], "category_distribution": []}
+        
+    # 2. 일별 판매량 및 매출액 추이 집계
+    trend_data = db.query(
+        models.SalesHistory.date,
+        func.sum(models.SalesHistory.sales_qty).label("total_sales_qty"),
+        func.sum(models.SalesHistory.sales_qty * models.SalesHistory.unit_price).label("total_revenue")
+    ).filter(models.SalesHistory.date.in_(target_dates))\
+     .group_by(models.SalesHistory.date)\
+     .order_by(models.SalesHistory.date.asc()).all()
+     
+    trend = []
+    for t in trend_data:
+        trend.append({
+            "date": t.date.strftime("%Y-%m-%d") if t.date else "",
+            "sales_qty": int(t.total_sales_qty or 0),
+            "revenue": int(t.total_revenue or 0)
+        })
+        
+    # 3. 해당 기간 가장 많이 판매된 상품 상위 5종 조회
+    top_products_data = db.query(
+        models.SalesHistory.product_name,
+        func.sum(models.SalesHistory.sales_qty).label("total_sales_qty")
+    ).filter(models.SalesHistory.date.in_(target_dates))\
+     .group_by(models.SalesHistory.product_name)\
+     .order_by(func.sum(models.SalesHistory.sales_qty).desc())\
+     .limit(5).all()
+     
+    top_products = []
+    for tp in top_products_data:
+        top_products.append({
+            "name": tp.product_name,
+            "sales_qty": int(tp.total_sales_qty or 0)
+        })
+        
+    # 4. 카테고리별 실시간 재고량 분포
+    category_data = db.query(
+        models.Product.category,
+        func.sum(models.InventoryLots.quantity).label("total_stock")
+    ).join(models.Product, models.Product.id == models.InventoryLots.product_id)\
+     .group_by(models.Product.category).all()
+     
+    category_distribution = []
+    for cd in category_data:
+        category_distribution.append({
+            "category": cd.category,
+            "stock": int(cd.total_stock or 0)
+        })
+        
+    return {
+        "trend": trend,
+        "top_products": top_products,
+        "category_distribution": category_distribution
+    }
+
 # --- [기능 5] AI 발주 제안 ---
 @app.get("/api/ai/suggest-orders")
 def suggest_orders(db: Session = Depends(database.get_db)):
