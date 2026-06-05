@@ -167,7 +167,7 @@ def get_my_card(
         "phone_number": card.phone_number
     }
 
-# --- [수정 추가] 결제 수단 존재 확인 API (main.py 내부에 위치) ---
+# --- 결제 수단 존재 확인 API ---
 @app.get("/api/payments/check-card")
 def check_card_exists(
     db: Session = Depends(database.get_db),
@@ -177,7 +177,7 @@ def check_card_exists(
     if card and card.card_number:
         return {
             "hasCard": True,
-            "card_number": card.card_number  # 프론트에서 뒷자리 표시를 위해 사용
+            "card_number": card.card_number
         }
     return {"hasCard": False}
 
@@ -354,6 +354,7 @@ def get_real_inventory(
             "name": p.name,
             "category": p.category,
             "stock": remains,
+            "price": p.price,  # 🌟 [수정 완료] 데이터베이스 연동 단가 표기 추가
             "status": "NORMAL" if remains >= 10 else ("WARNING" if remains > 0 else "OUT_OF_STOCK")
         })
     return inventory_list
@@ -382,7 +383,6 @@ def get_sales_trend(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    # 1. 판매 데이터가 존재하는 최근 7 영업일 날짜 조회
     recent_dates = db.query(models.SalesHistory.date)\
         .group_by(models.SalesHistory.date)\
         .order_by(models.SalesHistory.date.desc())\
@@ -393,7 +393,6 @@ def get_sales_trend(
     if not target_dates:
         return {"trend": [], "top_products": [], "category_distribution": []}
         
-    # 2. 일별 판매량 및 매출액 추이 집계
     trend_data = db.query(
         models.SalesHistory.date,
         func.sum(models.SalesHistory.sales_qty).label("total_sales_qty"),
@@ -410,7 +409,6 @@ def get_sales_trend(
             "revenue": int(t.total_revenue or 0)
         })
         
-    # 3. 해당 기간 가장 많이 판매된 상품 상위 5종 조회
     top_products_data = db.query(
         models.SalesHistory.product_name,
         func.sum(models.SalesHistory.sales_qty).label("total_sales_qty")
@@ -426,7 +424,6 @@ def get_sales_trend(
             "sales_qty": int(tp.total_sales_qty or 0)
         })
         
-    # 4. 카테고리별 실시간 재고량 분포
     category_data = db.query(
         models.Product.category,
         func.sum(models.InventoryLots.quantity).label("total_stock")
@@ -468,7 +465,6 @@ def suggest_orders(db: Session = Depends(database.get_db)):
         suggestions = []
         special_count = 0
         
-        # 내일의 가상 날씨/환경 생성 (AI 분석 느낌을 내기 위해)
         weathers = [
             {"precip": 0.0, "desc": "맑은 날씨", "icon": "sunny"},
             {"precip": 5.0, "desc": "약한 비", "icon": "rainy"},
@@ -480,7 +476,6 @@ def suggest_orders(db: Session = Depends(database.get_db)):
         tomorrow_weekday_str = weekdays_kor[tomorrow.weekday()]
         is_weekend = 1 if tomorrow.weekday() >= 5 else 0
 
-        # Bulk fetch high demand past records
         high_demand_records = db.query(models.SalesHistory.product_id).filter(
             func.extract('month', models.SalesHistory.date) == tomorrow.month,
             func.extract('day', models.SalesHistory.date) == tomorrow.day,
@@ -493,7 +488,6 @@ def suggest_orders(db: Session = Depends(database.get_db)):
                 c_id = le_cat.transform([p.category])[0]
                 n_id = le_name.transform([p.name])[0]
                 
-                # 랜덤 프로모션 적용 (약 15% 확률)
                 is_promotion = 1 if random.random() < 0.15 else 0
                 
                 test_input = pd.DataFrame([[tomorrow.month, tomorrow.weekday(), is_weekend, c_id, n_id, tomorrow_weather["precip"], is_promotion]], 
@@ -503,7 +497,6 @@ def suggest_orders(db: Session = Depends(database.get_db)):
 
                 is_special = p.id in high_demand_pids
 
-                # 디테일한 사유 생성
                 insight_icon = tomorrow_weather["icon"]
                 insight_type = "normal"
                 
@@ -521,18 +514,15 @@ def suggest_orders(db: Session = Depends(database.get_db)):
                         insight_icon = "celebration"
                         insight_type = "weekend"
 
-                # 목표 재고: 예측 판매량 또는 안전 재고(15개) 중 더 큰 값
                 target_stock = max(15, pred_sales)
 
                 if is_special:
                     reason_parts.append("또한, 작년 동월/동일에 판매량이 20개 이상 급증한 트렌드 상품입니다.")
-                    # 특별한 날에는 목표 재고의 15% 여유분 추가
                     target_stock = int(round(target_stock * 1.15))
                     special_count += 1
                     insight_icon = "trending_up"
                     insight_type = "special"
                 elif is_promotion:
-                    # 행사 상품은 10% 여유분 추가
                     target_stock = int(round(target_stock * 1.10))
 
                 suggest_qty = max(0, target_stock - curr_stock)
@@ -621,7 +611,7 @@ def submit_orders(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"발주 저장 실패: {str(e)}")
 
-# --- [수정 추가] 결제 및 발주 통합 승인 API (main.py 내부에 위치) ---
+# --- 결제 및 발주 통합 승인 API ---
 @app.post("/api/orders/pay-and-submit")
 def pay_and_submit_orders(
     order_data: OrderCreateRequest, 
@@ -691,14 +681,11 @@ def get_combined_training_data(db: Session = Depends(database.get_db)):
 # --- [기능 8] 입고 검수 및 승인 시스템 (Inbound Pipeline) ---
 @app.get("/api/orders/pending", response_model=List[schemas.PurchaseOrderResponse])
 def get_all_orders(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    """현재 모든 발주서 목록 조회 (최신순)"""
     orders = db.query(models.PurchaseOrder).order_by(models.PurchaseOrder.id.desc()).all()
     
-    # Bulk fetch products to avoid N+1
     all_products = db.query(models.Product).all()
     product_map = {p.id: p.name for p in all_products}
     
-    # Bulk fetch order items
     order_ids = [o.id for o in orders]
     all_items = db.query(models.PurchaseOrderItem).filter(models.PurchaseOrderItem.po_id.in_(order_ids)).all() if order_ids else []
     
@@ -707,7 +694,6 @@ def get_all_orders(db: Session = Depends(database.get_db), current_user: models.
     for item in all_items:
         items_by_order[item.po_id].append(item)
         
-    # Bulk fetch receipts
     all_receipts = db.query(models.InboundReceipt).filter(models.InboundReceipt.po_id.in_(order_ids)).all() if order_ids else []
     receipt_by_po = {r.po_id: r for r in all_receipts}
     
@@ -744,7 +730,6 @@ def create_inbound_draft(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    """가입고(Draft) 전표 생성 (AI나 외부 연동 시스템이 호출한다고 가정)"""
     receipt = models.InboundReceipt(
         po_id=payload.po_id,
         received_date=date_type.today(),
@@ -769,7 +754,6 @@ def create_inbound_draft(
 
 @app.get("/api/inbound/pending", response_model=List[schemas.InboundReceiptResponse])
 def get_pending_inbounds(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    """관리자 검수 대기 중인 가입고 목록 조회"""
     receipts = db.query(models.InboundReceipt).filter(models.InboundReceipt.status == "PENDING_REVIEW").all()
     for receipt in receipts:
         receipt.items = db.query(models.InboundReceiptItem).filter(models.InboundReceiptItem.receipt_id == receipt.id).all()
@@ -782,20 +766,16 @@ def approve_inbound(
     db: Session = Depends(database.get_db),
     admin: models.User = Depends(auth.get_current_admin_user)
 ):
-    """가입고 검수 완료 및 최종 재고 반영"""
     receipt = db.query(models.InboundReceipt).filter(models.InboundReceipt.id == receipt_id).first()
     if not receipt:
         raise HTTPException(status_code=404, detail="해당 입고 전표를 찾을 수 없습니다.")
     if receipt.status != "PENDING_REVIEW":
         raise HTTPException(status_code=400, detail="이미 처리된 전표입니다.")
         
-    # 삭제 후 재생성이 아닌 각 항목 업데이트/추가를 위한 간단한 방법:
-    # 기존 항목 전부 날리고 payload 온걸로 엎어친 후 승인
     db.query(models.InboundReceiptItem).filter(models.InboundReceiptItem.receipt_id == receipt_id).delete()
     
     today = date_type.today()
     for item in payload.items:
-        # 1. 입고 명세에 저장
         receipt_item = models.InboundReceiptItem(
             receipt_id=receipt.id,
             product_id=item.product_id,
@@ -804,7 +784,6 @@ def approve_inbound(
         )
         db.add(receipt_item)
         
-        # 2. 실제 재고(InventoryLots) 증가
         if item.received_qty > 0:
             lot = models.InventoryLots(
                 product_id=item.product_id,
@@ -816,7 +795,6 @@ def approve_inbound(
             
     receipt.status = "APPROVED"
     
-    # 발주서가 연결되어 있다면 상태를 RECEIVED로 변경
     if receipt.po_id:
         po = db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == receipt.po_id).first()
         if po:
@@ -825,6 +803,7 @@ def approve_inbound(
     db.commit()
     return {"status": "success", "message": f"{admin.full_name} 님, 입고 승인이 완료되었습니다."}
 
+# --- [정밀 보완] 실시간 단가 연동용 POS 전용 재고 조회 API ---
 @app.get("/api/pos/inventory")
 def get_pos_inventory(
     db: Session = Depends(database.get_db),
@@ -833,7 +812,6 @@ def get_pos_inventory(
     products = db.query(models.Product).all()
     today = date_type.today()
     
-    # Bulk fetch lots
     all_lots = db.query(models.InventoryLots).filter(models.InventoryLots.quantity > 0).all()
     from collections import defaultdict
     lots_by_product = defaultdict(list)
@@ -867,6 +845,7 @@ def get_pos_inventory(
             "id": p.id,
             "name": p.name,
             "total": red_qty + yellow_qty + green_qty,
+            "price": p.price,  # 🌟 [수정 완료] DB 내 실제 상품 가격 바인딩 추가
             "lots": {
                 "red": red_qty,
                 "yellow": yellow_qty,
