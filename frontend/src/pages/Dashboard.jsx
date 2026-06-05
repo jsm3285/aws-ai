@@ -15,7 +15,6 @@ function Dashboard() {
   const [inventoryData, setInventoryData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [stats, setStats] = useState({ expected_sales: 0, warning_count: 0, total_products: 0, categories_count: 0 });
-  // 실시간 매출 그래프를 위한 상태 변수
   const [chartData, setChartData] = useState([]);
 
   // 데이터 통합 로드 (백엔드 세션 토큰 포함)
@@ -34,7 +33,6 @@ function Dashboard() {
 
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
-      // 세 가지 API(재고현황, 요약스탯, 판매트렌드차트) 병렬 호출
       const [invRes, statsRes, trendRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/dashboard/inventory`, config),
         axios.get(`${API_BASE_URL}/api/dashboard/stats`, config),
@@ -47,7 +45,6 @@ function Dashboard() {
       setInventoryData(invRes.data);
       setStats(statsRes.data);
 
-      // 백엔드 리턴 포맷 { trend: [...] } 검증 및 매칭 안전화 처리
       if (trendRes.data && Array.isArray(trendRes.data.trend)) {
         setChartData(trendRes.data.trend);
       } else if (Array.isArray(trendRes.data)) {
@@ -67,11 +64,10 @@ function Dashboard() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000); // 30초 간격 실시간 자동 갱신
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // 임의 판매 처리 핸들러
   const handleSell = async (id, name) => {
     const qty = prompt(`[${name}] 몇 개를 판매 처리할까요?`, "1");
     if (!qty || isNaN(qty) || parseInt(qty) <= 0) return;
@@ -84,7 +80,7 @@ function Dashboard() {
         { product_id: id, quantity: parseInt(qty) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      await fetchData(); // 판매 정상 처리 후 대시보드 리로드 및 그래프 즉시 동기화
+      await fetchData();
     } catch (err) {
       alert("판매 처리 실패: 권한이 없거나 세션이 만료되었습니다.");
     }
@@ -97,12 +93,10 @@ function Dashboard() {
   );
 
   return (
-    /* 🌟 패치포인트 핵심: 사이드바/상단바 레이아웃을 침범하지 않도록 relative 구조로 복구하고, 
-       대시보드 알짜배기 영역 자체에 세로 스크롤(w-full h-full overflow-y-auto)을 깔끔하게 심었습니다. */
-    <div className="w-full h-full overflow-y-auto overflow-x-hidden p-2 xl:p-5 2xl:p-8 custom-scrollbar">
+    /* 🌟 패치포인트 1: 본문 컨테이너 자체에만 부드러운 스크롤을 주고, 강제 너비 고정을 제거하여 유연하게 반응하도록 수정 */
+    <div className="w-full h-full overflow-y-auto overflow-x-hidden p-3 xl:p-5 2xl:p-8 custom-scrollbar">
 
-      {/* 최소 너비 하한선을 주어 해상도가 아주 작아져도 그래프와 메트릭이 찌그러지지 않게 방어 */}
-      <div className="min-w-[1000px] flex flex-col gap-6 pb-12">
+      <div className="w-full flex flex-col gap-6 pb-12">
 
         {/* 1. 상단 요약 대시보드 메트릭 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
@@ -163,13 +157,13 @@ function Dashboard() {
 
         {/* 3. 하단 메인 재고 관리 테이블 영역 */}
         <div className="glass-panel rounded-3xl bg-white/5 border border-white/10 shadow-2xl block overflow-hidden">
-          <div className="p-4 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0">
+          <div className="p-4 border-b border-white/5 flex flex-col lg:flex-row justify-between items-center gap-4 shrink-0">
             <div>
               <h3 className="text-xl font-bold text-white mb-1">재고 현황 및 관리 스펙트럼</h3>
               <p className="text-xs text-gray-500 font-medium">선입선출(FIFO) 기반 데이터 로트 상태를 실시간 시각화합니다. (30초 자동 동기화)</p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
               {/* 상태별 색상 범례 가이드 */}
               <div className="flex gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-black/30 px-3 py-2 rounded-xl border border-white/5 shrink-0">
                 <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>위험 (5개 이하)</div>
@@ -191,15 +185,17 @@ function Dashboard() {
             </div>
           </div>
 
-          <div className="w-full">
-            <table className="w-full text-left text-white border-collapse">
+          {/* 🌟 패치포인트 2: 테이블 부모 레이아웃에 overflow-x-auto를 주어 화면 너비가 좁아지면 가로 스크롤바가 유연하게 생기도록 설계 */}
+          <div className="w-full overflow-x-auto scrollbar-thin">
+            {/* 테이블 자체의 최소 너비를 설정하여, 작은 화면에서도 내부 열들이 뭉개지지 않고 가로 스크롤되도록 고정 */}
+            <table className="w-full text-left text-white border-collapse min-w-[950px]">
               <thead className="bg-[#121212] shadow-md text-[10px] uppercase text-gray-400 font-black tracking-[0.2em]">
                 <tr>
-                  <th className="px-8 py-5">품목 정보</th>
-                  <th className="px-8 py-5">카테고리</th>
-                  <th className="px-8 py-5 text-left w-[360px]">현재 재고 스펙트럼 (50칸 고정)</th>
-                  <th className="px-8 py-5 text-center">상태</th>
-                  <th className="px-8 py-5 text-center">관리 액션</th>
+                  <th className="px-6 py-5">품목 정보</th>
+                  <th className="px-6 py-5">카테고리</th>
+                  <th className="px-6 py-5 text-left w-[340px]">현재 재고 스펙트럼 (50칸 고정)</th>
+                  <th className="px-6 py-5 text-center">상태</th>
+                  <th className="px-6 py-5 text-center">관리 액션</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -212,15 +208,15 @@ function Dashboard() {
 
                     return (
                       <tr key={item.id} className="hover:bg-white/5 transition-all group">
-                        <td className="px-8 py-6">
+                        <td className="px-6 py-6">
                           <p className="font-bold text-sm group-hover:text-indigo-300 transition-colors">{item.name}</p>
                           <p className="text-[10px] text-gray-500 font-mono mt-0.5">ID: {item.id}</p>
                         </td>
-                        <td className="px-8 py-6">
+                        <td className="px-6 py-6">
                           <span className="text-xs text-gray-400 bg-white/5 px-2 py-1 rounded-md border border-white/5">{item.category}</span>
                         </td>
 
-                        <td className="px-8 py-6">
+                        <td className="px-6 py-6">
                           <div className="flex flex-col gap-1.5 w-full max-w-[280px]">
                             <div className="flex justify-between items-baseline">
                               <div className="flex gap-2 text-[10px] font-mono opacity-80">
@@ -271,7 +267,7 @@ function Dashboard() {
                           </div>
                         </td>
 
-                        <td className="px-8 py-6">
+                        <td className="px-6 py-6">
                           <div className={`mx-auto w-fit px-3 py-1 rounded-full text-[9px] font-black tracking-tighter border ${totalQty === 0 ? statusStyles.OUT_OF_STOCK :
                             totalQty <= 5 ? "bg-red-500/10 text-red-400 border-red-500/20" :
                               statusStyles[item.status]
@@ -279,7 +275,7 @@ function Dashboard() {
                             {totalQty === 0 ? 'OUT OF STOCK' : totalQty <= 5 ? 'CRITICAL WARNING' : item.status.replace('_', ' ')}
                           </div>
                         </td>
-                        <td className="px-8 py-6 text-center">
+                        <td className="px-6 py-6 text-center">
                           <button
                             onClick={() => handleSell(item.id, item.name)}
                             className="group/btn relative px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl text-[10px] font-black hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-2 mx-auto"
@@ -293,7 +289,7 @@ function Dashboard() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="5" className="px-8 py-20 text-center text-gray-500 font-medium">
+                    <td colSpan="5" className="px-6 py-20 text-center text-gray-500 font-medium">
                       <span className="material-symbols-outlined text-4xl mb-4 block opacity-20">inventory</span>
                       검색 결과와 일치하는 상품이 없습니다.
                     </td>
