@@ -73,7 +73,7 @@ function POSView() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [inventory]);
 
-  // 장바구니에 상품 담기 로직
+  // 장바구니에 상품 담기 로직 (가격 데이터 연동)
   const addToCart = (productId, addQty) => {
     const product = inventoryRef.current.find(item => item.id === productId);
 
@@ -100,7 +100,9 @@ function POSView() {
           item.id === productId ? { ...item, qty: item.qty + addQty } : item
         );
       } else {
-        return [...prevCart, { id: product.id, name: product.name, qty: addQty, max: product.total }];
+        // 백엔드 API에서 제공한 price 컬럼 연동 및 데이터 누락 방지 가드 구축
+        const itemPrice = product.price !== undefined ? product.price : 1000;
+        return [...prevCart, { id: product.id, name: product.name, qty: addQty, max: product.total, price: itemPrice }];
       }
     });
   };
@@ -195,6 +197,10 @@ function POSView() {
     };
   }, [showCamera]);
 
+  // 🌟 실시간 장바구니 총 주문 금액 및 총 수량 합산 로직
+  const totalOrderQty = cart.reduce((sum, item) => sum + item.qty, 0);
+  const totalOrderPrice = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
   return (
     <div className="flex flex-col h-full p-4 2xl:p-8 text-white overflow-hidden bg-[#0d0e12]">
       <header className="mb-4 2xl:mb-6 shrink-0">
@@ -239,7 +245,7 @@ function POSView() {
                   </button>
                 </div>
 
-                {/* 수동 담기 폼 (Select 색상 시인성 패치 완료) */}
+                {/* 수동 담기 폼 (드롭다운 가독성 스타일 보정 완료) */}
                 <div>
                   <form onSubmit={handleManualAdd} className="flex flex-col gap-4">
                     <div className="flex flex-col gap-1">
@@ -255,7 +261,7 @@ function POSView() {
                         ) : (
                           inventory.map((item) => (
                             <option key={item.id} value={item.id} className="bg-[#181920] text-white py-2">
-                              {item.name} (잔여: {item.total}개)
+                              {item.name} (잔여: {item.total}개 {item.price ? `/ ₩${item.price.toLocaleString()}` : ''})
                             </option>
                           ))
                         )}
@@ -306,56 +312,82 @@ function POSView() {
         </section>
 
         {/* 오른쪽 섹션: 와이드형 장바구니 관리 리스트 */}
-        <section className="flex-1 min-h-0 glass-panel rounded-3xl p-6 bg-white/5 border border-white/10 flex flex-col">
-          <div className="flex justify-between items-center mb-6 shrink-0">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <span className="material-symbols-outlined text-indigo-400">shopping_cart</span>
-              실시간 결제 대기 목록
-              <span className="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-md ml-1 border border-indigo-500/30">
-                {cart.length}종
-              </span>
-            </h2>
-            <p className="text-xs text-gray-500">바코드가 태깅되거나 등록된 대기 아이템 전량입니다.</p>
+        <section className="flex-1 min-h-0 glass-panel rounded-3xl p-6 bg-white/5 border border-white/10 flex flex-col justify-between">
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="flex justify-between items-center mb-6 shrink-0">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-400">shopping_cart</span>
+                실시간 결제 대기 목록
+                <span className="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-md ml-1 border border-indigo-500/30">
+                  {cart.length}종
+                </span>
+              </h2>
+              <p className="text-xs text-gray-500">바코드가 태깅되거나 등록된 대기 아이템 전량입니다.</p>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2">
+              {cart.length === 0 ? (
+                <div className="h-full border-2 border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
+                  <span className="material-symbols-outlined text-5xl opacity-20 animate-pulse text-indigo-400">add_shopping_cart</span>
+                  좌측 바코드를 스캔하거나 수동으로 품목을 장바구니에 담아주세요.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 pb-4">
+                  {cart.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between bg-white/5 border border-white/10 hover:border-indigo-500/30 hover:bg-white/10 p-4 rounded-2xl transition-all duration-200 group animate-in fade-in slide-in-from-bottom-2"
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-bold text-base text-white group-hover:text-indigo-300 transition-colors">{item.name}</span>
+                        <div className="flex items-center gap-2 text-[11px] text-gray-500 font-mono">
+                          <span>CODE: {item.id}</span>
+                          <span>•</span>
+                          {item.price && <span className="text-emerald-400 font-medium">단가: ₩{item.price.toLocaleString()}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-xl">
+                          <span className="font-mono text-indigo-400 font-black text-sm">{item.qty} 개</span>
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(item.id)}
+                          className="w-9 p-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all duration-150 flex items-center justify-center"
+                          title="주문 제외"
+                        >
+                          <span className="material-symbols-outlined text-base block text-center">delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2">
-            {cart.length === 0 ? (
-              <div className="h-full border-2 border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
-                <span className="material-symbols-outlined text-5xl opacity-20 animate-pulse text-indigo-400">add_shopping_cart</span>
-                좌측 바코드를 스캔하거나 수동으로 품목을 장바구니에 담아주세요.
+          {/* 실시간 합계 금액 표기 하단바 레이아웃 */}
+          {cart.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-white/10 shrink-0 bg-black/20 p-4 rounded-2xl border border-white/5 flex justify-between items-center animate-in fade-in slide-in-from-bottom-4">
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">주문 정보 요약</span>
+                  <span className="text-sm font-medium text-indigo-300 font-mono">선택 품목 총 {cart.length}종</span>
+                </div>
+                <div className="h-8 w-px bg-white/10"></div>
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">총 수량</span>
+                  <span className="text-sm font-black text-white font-mono">{totalOrderQty}개</span>
+                </div>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 pb-4">
-                {cart.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between bg-white/5 border border-white/10 hover:border-indigo-500/30 hover:bg-white/10 p-4 rounded-2xl transition-all duration-200 group animate-in fade-in slide-in-from-bottom-2"
-                  >
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-bold text-base text-white group-hover:text-indigo-300 transition-colors">{item.name}</span>
-                      <div className="flex items-center gap-2 text-[11px] text-gray-500 font-mono">
-                        <span>CODE: {item.id}</span>
-                        <span>•</span>
-                        <span>잔여 한도: {item.max}개</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-xl">
-                        <span className="font-mono text-indigo-400 font-black text-sm">{item.qty} 개</span>
-                      </div>
-                      <button
-                        onClick={() => removeFromCart(item.id)}
-                        className="w-9 p-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all duration-150 flex items-center justify-center"
-                        title="주문 제외"
-                      >
-                        <span className="material-symbols-outlined text-base block text-center">delete</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+
+              <div className="text-right">
+                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-0.5">최종 결제 예정 금액</span>
+                <span className="text-2xl md:text-3xl font-black text-emerald-400 font-mono">
+                  ₩{totalOrderPrice.toLocaleString()}
+                </span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </section>
 
       </div>
