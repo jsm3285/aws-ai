@@ -172,81 +172,83 @@ function AIOrders() {
   }
 
   return (
-    <div className="flex flex-col h-full max-h-screen overflow-hidden p-3 2xl:p-5 gap-3 2xl:gap-4 text-white">
-      <header className="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-black flex items-center gap-2">
-            <span className="material-symbols-outlined text-indigo-400 text-3xl lg:text-4xl">smart_toy</span>
-            AI 스마트 발주 제안
-          </h1>
-          <p className="text-gray-400 text-xs lg:text-sm mt-1">
-            지난 4년간의 기상청 날씨 데이터, 지역 행사, 요일별 판매 패턴을 딥러닝(XGBoost)으로 분석하여 오늘 가장 필요한 발주량을 핀포인트로 예측합니다.
-          </p>
-        </div>
-      </header>
-
-      {summary && (
-        <div className="shrink-0 glass-panel p-3 lg:p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="p-1.5 bg-indigo-500 rounded-lg shadow-lg shadow-indigo-500/50">
-              <span className="material-symbols-outlined text-white block text-sm">psychology</span>
-            </div>
-            <span className="font-bold text-indigo-300 text-base">AI 예측 리포트</span>
+    <div className="w-full h-full flex justify-center bg-transparent">
+      <div className="flex flex-col h-full w-full max-w-screen-2xl overflow-hidden p-3 2xl:p-5 gap-3 2xl:gap-4 text-white">
+        <header className="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-black flex items-center gap-2">
+              <span className="material-symbols-outlined text-indigo-400 text-3xl lg:text-4xl">smart_toy</span>
+              AI 스마트 발주 제안
+            </h1>
+            <p className="text-gray-400 text-xs lg:text-sm mt-1">
+              지난 4년간의 기상청 날씨 데이터, 지역 행사, 요일별 판매 패턴을 딥러닝(XGBoost)으로 분석하여 오늘 가장 필요한 발주량을 핀포인트로 예측합니다.
+            </p>
           </div>
-          <p className="text-sm leading-relaxed text-indigo-100/80">{summary}</p>
-        </div>
-      )}
+        </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-        {recommendations.length === 0 ? (
-          <div className="text-center py-40 border-2 border-dashed border-white/10 rounded-3xl opacity-30">
-            <p>오늘의 발주 제안 데이터가 없습니다.</p>
-          </div>
-        ) : (
-          recommendations.map((p) => (
-            <div key={p.id} className={`p-4 rounded-2xl border transition-all flex items-center justify-between ${p.is_special ? 'bg-gradient-to-br from-indigo-900/40 to-purple-900/40 border-indigo-500/50 shadow-lg shadow-indigo-500/10' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-bold text-lg">{p.name}</h4>
-                  {p.is_special && <span className="px-2 py-0.5 bg-pink-500 text-[9px] font-black rounded-md uppercase animate-pulse">Hot Trend</span>}
-                </div>
-                <p className="text-xs text-indigo-400 font-medium">현재고: {p.current_stock}개 | AI 예측판매: {p.predicted_sales}개</p>
-                {p.reason && (
-                  <div className="mt-3 bg-[#11131a] p-3 rounded-xl border border-indigo-500/20 flex gap-3 items-start animate-in fade-in">
-                    <div className="p-1.5 bg-indigo-500/20 rounded-lg shrink-0 mt-0.5">
-                      <span className="material-symbols-outlined text-indigo-400 text-sm">{p.insight_icon || 'insights'}</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">
-                        {p.insight_type === 'special' ? 'TREND ANALYSIS' :
-                          p.insight_type === 'promotion' ? 'PROMOTION DETECTED' :
-                            p.insight_type === 'weekend' ? 'WEEKEND PATTERN' : 'STANDARD PREDICTION'}
-                      </span>
-                      <p className="text-xs text-gray-300 leading-relaxed font-medium">{p.reason}</p>
-                    </div>
-                  </div>
-                )}
+        {summary && (
+          <div className="shrink-0 glass-panel p-3 lg:p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex flex-col sm:flex-row sm:items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="p-1.5 bg-indigo-500 rounded-lg shadow-lg shadow-indigo-500/50">
+                <span className="material-symbols-outlined text-white block text-sm">psychology</span>
               </div>
-              <div className="flex items-center gap-3 bg-black/40 p-1.5 rounded-xl border border-white/10 shrink-0">
-                <button onClick={() => adjustQty(p.id, -1)} disabled={!isAdmin} className="w-8 h-8 rounded-lg text-xl font-bold bg-white/5 hover:bg-white/20">-</button>
-                <span className="text-2xl font-black w-10 text-center text-indigo-400">{p.suggested_qty}</span>
-                <button onClick={() => adjustQty(p.id, 1)} disabled={!isAdmin} className="w-8 h-8 rounded-lg text-xl font-bold bg-indigo-600 hover:bg-indigo-500">+</button>
-              </div>
+              <span className="font-bold text-indigo-300 text-base">AI 예측 리포트</span>
             </div>
-          ))
+            <p className="text-sm leading-relaxed text-indigo-100/80 flex-1 min-w-0 break-keep">{summary}</p>
+          </div>
         )}
-      </div>
 
-      <footer className="pt-2 shrink-0">
-        <button
-          onClick={handleOrderSubmit}
-          disabled={!isAdmin}
-          className={`w-full h-14 font-black text-lg rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] ${isAdmin ? 'bg-gradient-to-r from-indigo-600 to-purple-600 shadow-indigo-600/20' : 'bg-white/10 text-gray-500 cursor-not-allowed border border-white/20 shadow-none'}`}
-        >
-          <span className="material-symbols-outlined">{isAdmin ? 'credit_card' : 'lock'}</span>
-          {isAdmin ? 'AI 제안 수량 결제 및 발주' : '발주 권한 없음 (점장 전용)'}
-        </button>
-      </footer>
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+          {recommendations.length === 0 ? (
+            <div className="text-center py-40 border-2 border-dashed border-white/10 rounded-3xl opacity-30">
+              <p>오늘의 발주 제안 데이터가 없습니다.</p>
+            </div>
+          ) : (
+            recommendations.map((p) => (
+              <div key={p.id} className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${p.is_special ? 'bg-gradient-to-br from-indigo-900/40 to-purple-900/40 border-indigo-500/50 shadow-lg shadow-indigo-500/10' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-bold text-lg truncate">{p.name}</h4>
+                    {p.is_special && <span className="px-2 py-0.5 bg-pink-500 text-[9px] font-black rounded-md uppercase animate-pulse shrink-0">Hot Trend</span>}
+                  </div>
+                  <p className="text-xs text-indigo-400 font-medium truncate">현재고: {p.current_stock}개 | AI 예측판매: {p.predicted_sales}개</p>
+                  {p.reason && (
+                    <div className="mt-3 bg-[#11131a] p-3 rounded-xl border border-indigo-500/20 flex gap-3 items-start animate-in fade-in">
+                      <div className="p-1.5 bg-indigo-500/20 rounded-lg shrink-0 mt-0.5">
+                        <span className="material-symbols-outlined text-indigo-400 text-sm">{p.insight_icon || 'insights'}</span>
+                      </div>
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
+                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider shrink-0">
+                          {p.insight_type === 'special' ? 'TREND ANALYSIS' :
+                            p.insight_type === 'promotion' ? 'PROMOTION DETECTED' :
+                              p.insight_type === 'weekend' ? 'WEEKEND PATTERN' : 'STANDARD PREDICTION'}
+                        </span>
+                        <p className="text-xs text-gray-300 leading-relaxed font-medium break-keep">{p.reason}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 bg-black/40 p-1.5 rounded-xl border border-white/10 shrink-0 md:self-center self-end">
+                  <button onClick={() => adjustQty(p.id, -1)} disabled={!isAdmin} className="w-8 h-8 rounded-lg text-xl font-bold bg-white/5 hover:bg-white/20">-</button>
+                  <span className="text-2xl font-black w-10 text-center text-indigo-400">{p.suggested_qty}</span>
+                  <button onClick={() => adjustQty(p.id, 1)} disabled={!isAdmin} className="w-8 h-8 rounded-lg text-xl font-bold bg-indigo-600 hover:bg-indigo-500">+</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <footer className="pt-2 shrink-0">
+          <button
+            onClick={handleOrderSubmit}
+            disabled={!isAdmin}
+            className={`w-full h-14 font-black text-lg rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] ${isAdmin ? 'bg-gradient-to-r from-indigo-600 to-purple-600 shadow-indigo-600/20' : 'bg-white/10 text-gray-500 cursor-not-allowed border border-white/20 shadow-none'}`}
+          >
+            <span className="material-symbols-outlined">{isAdmin ? 'credit_card' : 'lock'}</span>
+            {isAdmin ? 'AI 제안 수량 결제 및 발주' : '발주 권한 없음 (점장 전용)'}
+          </button>
+        </footer>
+      </div>
     </div>
   );
 }
