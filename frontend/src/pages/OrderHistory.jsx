@@ -90,7 +90,7 @@ function OrderHistory() {
 
       alert("입고 검수 및 재고 반영이 완료되었습니다.");
       setSelectedOrder(null);
-      navigate('/pos');
+      fetchOrders();
     } catch (error) {
       console.error('Inbound approval failed:', error);
       alert("처리 중 오류가 발생했습니다.");
