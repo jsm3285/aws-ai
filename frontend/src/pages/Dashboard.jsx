@@ -95,7 +95,7 @@ function Dashboard() {
   return (
     <div className="w-full h-full overflow-y-auto overflow-x-hidden p-3 xl:p-5 2xl:p-8 custom-scrollbar">
 
-      <div className="w-full flex flex-col gap-6 pb-12">
+      <div className="w-full flex flex-col gap-6 pb-12 min-w-0">
 
         {/* 1. 상단 요약 대시보드 메트릭 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
@@ -155,7 +155,7 @@ function Dashboard() {
         </div>
 
         {/* 3. 하단 메인 재고 관리 테이블 영역 */}
-        <div className="glass-panel rounded-3xl bg-white/5 border border-white/10 shadow-2xl block overflow-hidden">
+        <div className="glass-panel rounded-3xl bg-white/5 border border-white/10 shadow-2xl block overflow-hidden w-full min-w-0">
 
           {/* ✅ 수정된 툴바: 타이틀과 범례+검색창을 항상 두 줄로 분리 */}
           <div className="p-4 border-b border-white/5 flex flex-col gap-3 shrink-0">
@@ -188,10 +188,10 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* 테이블 가로 스크롤 패널 */}
-          <div className="w-full overflow-x-auto custom-scrollbar pr-2">
+          {/* 테이블 가로 및 세로 스크롤 패널 (스크롤바 하단 고정) */}
+          <div className="w-full max-h-[50vh] 2xl:max-h-[60vh] overflow-auto custom-scrollbar pr-2 relative">
             <table className="w-full text-left text-white border-collapse min-w-[1050px]">
-              <thead className="bg-[#121212] shadow-md text-[10px] uppercase text-gray-400 font-black tracking-[0.2em]">
+              <thead className="bg-[#121212] shadow-md text-[10px] uppercase text-gray-400 font-black tracking-[0.2em] sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-5">품목 정보</th>
                   <th className="px-6 py-5">카테고리</th>
