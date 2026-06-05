@@ -322,7 +322,7 @@ function POSView() {
                   {cart.length}종
                 </span>
               </h2>
-              <p className="text-xs text-gray-500">바코드가 태깅되거나 등록된 대기 아이템 전량입니다.</p>
+              <p className="text-xs text-gray-500 hidden sm:block">바코드가 태깅되거나 등록된 대기 아이템 전량입니다.</p>
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2">
@@ -332,27 +332,36 @@ function POSView() {
                   좌측 바코드를 스캔하거나 수동으로 품목을 장바구니에 담아주세요.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 pb-4">
+                /* 🌟 패치 포인트 1: 기존 xl:grid-cols-2를 2xl:grid-cols-2로 높여 중간 해상도 모니터에서 1열로 시원하게 나오도록 변경 */
+                <div className="grid grid-cols-1 2xl:grid-cols-2 gap-3 pb-4">
                   {cart.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between bg-white/5 border border-white/10 hover:border-indigo-500/30 hover:bg-white/10 p-4 rounded-2xl transition-all duration-200 group animate-in fade-in slide-in-from-bottom-2"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between bg-white/5 border border-white/10 hover:border-indigo-500/30 hover:bg-white/10 p-4 rounded-2xl transition-all duration-200 group gap-3 animate-in fade-in slide-in-from-bottom-2"
                     >
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-bold text-base text-white group-hover:text-indigo-300 transition-colors">{item.name}</span>
-                        <div className="flex items-center gap-2 text-[11px] text-gray-500 font-mono">
-                          <span>CODE: {item.id}</span>
-                          <span>•</span>
-                          {item.price && <span className="text-emerald-400 font-medium">단가: ₩{item.price.toLocaleString()}</span>}
+                      {/* 🌟 패치 포인트 2: 정보 영역을 flex-1로 설정하고, 텍스트가 줄바꿈되더라도 겹치지 않게 min-w-0 부여 */}
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
+                        <span className="font-bold text-base text-white group-hover:text-indigo-300 transition-colors truncate block">
+                          {item.name}
+                        </span>
+                        {/* 🌟 패치 포인트 3: CODE, 단가, 잔여 수량이 가로폭이 좁아지면 자연스럽게 줄바꿈(flex-wrap)되도록 개선 */}
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-400 font-mono">
+                          <span className="shrink-0">CODE: {item.id}</span>
+                          <span className="text-gray-600 hidden sm:inline">•</span>
+                          {item.price && <span className="text-indigo-300 shrink-0">단가: ₩{item.price.toLocaleString()}</span>}
+                          <span className="text-gray-600 hidden sm:inline">•</span>
+                          <span className="text-yellow-500/80 shrink-0">잔여: {item.max}개</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
+
+                      {/* 오른쪽 수량 배지 및 삭제 버튼 레이아웃 고정 */}
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 border-t border-white/5 sm:border-none pt-2 sm:pt-0">
                         <div className="bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-xl">
                           <span className="font-mono text-indigo-400 font-black text-sm">{item.qty} 개</span>
                         </div>
                         <button
                           onClick={() => removeFromCart(item.id)}
-                          className="w-9 p-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all duration-150 flex items-center justify-center"
+                          className="w-9 h-9 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all duration-150 flex items-center justify-center shrink-0"
                           title="주문 제외"
                         >
                           <span className="material-symbols-outlined text-base block text-center">delete</span>
@@ -367,7 +376,7 @@ function POSView() {
 
           {/* 실시간 합계 금액 표기 하단바 레이아웃 */}
           {cart.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-white/10 shrink-0 bg-black/20 p-4 rounded-2xl border border-white/5 flex justify-between items-center animate-in fade-in slide-in-from-bottom-4">
+            <div className="mt-4 pt-4 border-t border-white/10 shrink-0 bg-black/20 p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row justify-between sm:items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
               <div className="flex items-center gap-4">
                 <div className="flex flex-col">
                   <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">주문 정보 요약</span>
@@ -380,7 +389,7 @@ function POSView() {
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="text-left sm:text-right border-t border-white/5 sm:border-none pt-2 sm:pt-0">
                 <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-0.5">최종 결제 예정 금액</span>
                 <span className="text-2xl md:text-3xl font-black text-emerald-400 font-mono">
                   ₩{totalOrderPrice.toLocaleString()}
@@ -390,31 +399,29 @@ function POSView() {
           )}
         </section>
 
-      </div>
-
-      {/* 카메라 모달 */}
-      {showCamera && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-[#1a1b21] border border-indigo-500/30 rounded-3xl p-6 max-w-md w-full flex flex-col items-center">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <span className="material-symbols-outlined text-indigo-400">qr_code_scanner</span>
-              카메라 바코드 스캔
-            </h2>
-            <div className="w-full bg-black rounded-xl overflow-hidden mb-4 border border-white/10">
-              <div id="reader" className="w-full"></div>
+        {/* 카메라 모달 */}
+        {showCamera && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="bg-[#1a1b21] border border-indigo-500/30 rounded-3xl p-6 max-w-md w-full flex flex-col items-center">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <span className="material-symbols-outlined text-indigo-400">qr_code_scanner</span>
+                카메라 바코드 스캔
+              </h2>
+              <div className="w-full bg-black rounded-xl overflow-hidden mb-4 border border-white/10">
+                <div id="reader" className="w-full"></div>
+              </div>
+              <button
+                onClick={handleCloseCamera}
+                className="w-full h-12 bg-red-600 hover:bg-red-500 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined">close</span>
+                스캔 취소
+              </button>
             </div>
-            <button
-              onClick={handleCloseCamera}
-              className="w-full h-12 bg-red-600 hover:bg-red-500 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined">close</span>
-              스캔 취소
-            </button>
           </div>
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+      );
 }
 
-export default POSView;
+      export default POSView;
