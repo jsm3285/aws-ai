@@ -93,6 +93,7 @@ function Dashboard() {
   );
 
   return (
+    /* 🌟 전체 대시보드 레이아웃: 사이드바를 유지한 채 세로 스크롤을 안정적으로 제공 */
     <div className="w-full h-full overflow-y-auto overflow-x-hidden p-3 xl:p-5 2xl:p-8 custom-scrollbar">
 
       <div className="w-full flex flex-col gap-6 pb-12">
@@ -156,43 +157,46 @@ function Dashboard() {
 
         {/* 3. 하단 메인 재고 관리 테이블 영역 */}
         <div className="glass-panel rounded-3xl bg-white/5 border border-white/10 shadow-2xl block overflow-hidden">
-          <div className="p-4 border-b border-white/5 flex flex-col lg:flex-row justify-between items-center gap-4 shrink-0">
+
+          {/* 타이틀 및 툴바 영역 (해상도 축소 시 검색창 자동 줄바꿈 패치 완료) */}
+          <div className="p-4 border-b border-white/5 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 shrink-0">
             <div>
               <h3 className="text-xl font-bold text-white mb-1">재고 현황 및 관리 스펙트럼</h3>
               <p className="text-xs text-gray-500 font-medium">선입선출(FIFO) 기반 데이터 로트 상태를 실시간 시각화합니다. (30초 자동 동기화)</p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
+            <div className="flex flex-wrap items-center gap-3 xl:gap-4 w-full lg:w-auto">
+              {/* 상태별 색상 범례 가이드 */}
               <div className="flex gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-black/30 px-3 py-2 rounded-xl border border-white/5 shrink-0">
                 <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>위험 (5개 이하)</div>
                 <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-yellow-500 shadow-[0_0_5px_rgba(234,179,8,0.8)]"></div>경고 (6~9개)</div>
                 <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]"></div>안전 (10개 이상)</div>
               </div>
 
-              <div className="relative group w-full sm:w-auto">
+              {/* 검색 바 (우측 터짐 방지 보정값 적용) */}
+              <div className="relative group w-full sm:w-60 md:w-64 xl:w-80 shrink-0">
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors">search</span>
                 <input
                   type="text"
                   placeholder="품목명, 코드, 카테고리 검색..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-2.5 text-sm text-white outline-none w-full sm:w-64 md:w-80 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  className="bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-2.5 text-sm text-white outline-none w-full focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all"
                 />
               </div>
             </div>
           </div>
 
-          {/* 🌟 패치포인트 1: 패딩 가로폭 최적화 및 880px 마지노선 수축 한계 조율 */}
-          <div className="w-full overflow-x-auto scrollbar-thin pr-1">
-            {/* 🌟 패치포인트 2: 미세 압축을 유도하여 1280px 노트북에서도 잘림을 완벽 차단 */}
-            <table className="w-full text-left text-white border-collapse min-w-[880px]">
+          {/* 테이블 알짜배기 구역 가로 스크롤 패널 (min-w 제한 조율을 통해 우측 버튼 잘림 차단) */}
+          <div className="w-full overflow-x-auto custom-scrollbar pr-2">
+            <table className="w-full text-left text-white border-collapse min-w-[1050px]">
               <thead className="bg-[#121212] shadow-md text-[10px] uppercase text-gray-400 font-black tracking-[0.2em]">
                 <tr>
-                  <th className="px-5 py-5">품목 정보</th>
-                  <th className="px-4 py-5">카테고리</th>
-                  <th className="px-4 py-5 text-left w-[320px]">현재 재고 스펙트럼 (50칸 고정)</th>
-                  <th className="px-4 py-5 text-center">상태</th>
-                  <th className="px-6 py-5 text-center">관리 액션</th>
+                  <th className="px-6 py-5">품목 정보</th>
+                  <th className="px-6 py-5">카테고리</th>
+                  <th className="px-6 py-5 text-left w-[360px]">현재 재고 스펙트럼 (50칸 고정)</th>
+                  <th className="px-6 py-5 text-center">상태</th>
+                  <th className="px-8 py-5 text-center">관리 액션</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -205,16 +209,16 @@ function Dashboard() {
 
                     return (
                       <tr key={item.id} className="hover:bg-white/5 transition-all group">
-                        <td className="px-5 py-5">
+                        <td className="px-6 py-6">
                           <p className="font-bold text-sm group-hover:text-indigo-300 transition-colors">{item.name}</p>
                           <p className="text-[10px] text-gray-500 font-mono mt-0.5">ID: {item.id}</p>
                         </td>
-                        <td className="px-4 py-5">
+                        <td className="px-6 py-6">
                           <span className="text-xs text-gray-400 bg-white/5 px-2 py-1 rounded-md border border-white/5">{item.category}</span>
                         </td>
 
-                        <td className="px-4 py-5">
-                          <div className="flex flex-col gap-1.5 w-full max-w-[260px]">
+                        <td className="px-6 py-6">
+                          <div className="flex flex-col gap-1.5 w-full max-w-[280px]">
                             <div className="flex justify-between items-baseline">
                               <div className="flex gap-2 text-[10px] font-mono opacity-80">
                                 {redQty > 0 && <span className="text-red-400">🔴 {redQty}</span>}
@@ -264,7 +268,7 @@ function Dashboard() {
                           </div>
                         </td>
 
-                        <td className="px-4 py-5">
+                        <td className="px-6 py-6 text-center">
                           <div className={`mx-auto w-fit px-3 py-1 rounded-full text-[9px] font-black tracking-tighter border ${totalQty === 0 ? statusStyles.OUT_OF_STOCK :
                             totalQty <= 5 ? "bg-red-500/10 text-red-400 border-red-500/20" :
                               statusStyles[item.status]
@@ -272,7 +276,7 @@ function Dashboard() {
                             {totalQty === 0 ? 'OUT OF STOCK' : totalQty <= 5 ? 'CRITICAL WARNING' : item.status.replace('_', ' ')}
                           </div>
                         </td>
-                        <td className="px-6 py-5 text-center">
+                        <td className="px-8 py-6 text-center">
                           <button
                             onClick={() => handleSell(item.id, item.name)}
                             className="group/btn relative px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl text-[10px] font-black hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-2 mx-auto shrink-0"
