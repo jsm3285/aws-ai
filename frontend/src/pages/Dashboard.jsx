@@ -93,7 +93,6 @@ function Dashboard() {
   );
 
   return (
-    /* 🌟 전체 대시보드 레이아웃: 사이드바를 유지한 채 세로 스크롤을 안정적으로 제공 */
     <div className="w-full h-full overflow-y-auto overflow-x-hidden p-3 xl:p-5 2xl:p-8 custom-scrollbar">
 
       <div className="w-full flex flex-col gap-6 pb-12">
@@ -158,23 +157,25 @@ function Dashboard() {
         {/* 3. 하단 메인 재고 관리 테이블 영역 */}
         <div className="glass-panel rounded-3xl bg-white/5 border border-white/10 shadow-2xl block overflow-hidden">
 
-          {/* 타이틀 및 툴바 영역 (해상도 축소 시 검색창 자동 줄바꿈 패치 완료) */}
-          <div className="p-4 border-b border-white/5 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 shrink-0">
+          {/* ✅ 수정된 툴바: 타이틀과 범례+검색창을 항상 두 줄로 분리 */}
+          <div className="p-4 border-b border-white/5 flex flex-col gap-3 shrink-0">
+            {/* 타이틀 영역 */}
             <div>
               <h3 className="text-xl font-bold text-white mb-1">재고 현황 및 관리 스펙트럼</h3>
               <p className="text-xs text-gray-500 font-medium">선입선출(FIFO) 기반 데이터 로트 상태를 실시간 시각화합니다. (30초 자동 동기화)</p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 xl:gap-4 w-full lg:w-auto">
-              {/* 상태별 색상 범례 가이드 */}
-              <div className="flex gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-black/30 px-3 py-2 rounded-xl border border-white/5 shrink-0">
+            {/* 범례 + 검색창: flex-wrap으로 작은 화면에서 줄바꿈 허용 */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* 상태별 색상 범례 */}
+              <div className="flex flex-wrap gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-black/30 px-3 py-2 rounded-xl border border-white/5 shrink-0">
                 <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>위험 (5개 이하)</div>
                 <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-yellow-500 shadow-[0_0_5px_rgba(234,179,8,0.8)]"></div>경고 (6~9개)</div>
                 <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]"></div>안전 (10개 이상)</div>
               </div>
 
-              {/* 검색 바 (우측 터짐 방지 보정값 적용) */}
-              <div className="relative group w-full sm:w-60 md:w-64 xl:w-80 shrink-0">
+              {/* ✅ 검색바: 고정 너비 제거 → flex-1 + min-w로 남은 공간 유동적으로 채움 */}
+              <div className="relative group flex-1 min-w-[180px]">
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors">search</span>
                 <input
                   type="text"
@@ -187,7 +188,7 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* 테이블 알짜배기 구역 가로 스크롤 패널 (min-w 제한 조율을 통해 우측 버튼 잘림 차단) */}
+          {/* 테이블 가로 스크롤 패널 */}
           <div className="w-full overflow-x-auto custom-scrollbar pr-2">
             <table className="w-full text-left text-white border-collapse min-w-[1050px]">
               <thead className="bg-[#121212] shadow-md text-[10px] uppercase text-gray-400 font-black tracking-[0.2em]">
