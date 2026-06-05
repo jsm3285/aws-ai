@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getPendingOrders, createInboundDraft, approveInbound } from '../api/inventory';
 
 function OrderHistory() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [receiptItems, setReceiptItems] = useState({}); // { product_id: { received_qty, expiration_date } }
@@ -62,7 +64,7 @@ function OrderHistory() {
   // 입고 승인 처리
   const handleApprove = async () => {
     if (!selectedOrder) return;
-    
+
     // 유효성 검사 (날짜가 다 채워졌는지)
     const missingDates = Object.values(receiptItems).some(item => !item.expiration_date);
     if (missingDates) {
@@ -88,7 +90,7 @@ function OrderHistory() {
 
       alert("입고 검수 및 재고 반영이 완료되었습니다.");
       setSelectedOrder(null);
-      fetchOrders(); // 목록 새로고침
+      navigate('/pos');
     } catch (error) {
       console.error('Inbound approval failed:', error);
       alert("처리 중 오류가 발생했습니다.");
@@ -114,14 +116,13 @@ function OrderHistory() {
             </div>
           ) : (
             orders.map((order) => (
-              <div 
+              <div
                 key={order.id}
                 onClick={() => handleSelectOrder(order)}
-                className={`p-5 rounded-2xl border transition-all cursor-pointer ${
-                  selectedOrder?.id === order.id 
-                  ? 'bg-indigo-600 border-indigo-400' 
-                  : 'bg-white/5 border-white/10 hover:bg-white/10'
-                }`}
+                className={`p-5 rounded-2xl border transition-all cursor-pointer ${selectedOrder?.id === order.id
+                    ? 'bg-indigo-600 border-indigo-400'
+                    : 'bg-white/5 border-white/10 hover:bg-white/10'
+                  }`}
               >
                 <div className="flex justify-between items-center">
                   <div>
@@ -146,7 +147,7 @@ function OrderHistory() {
             <span className="material-symbols-outlined text-indigo-400">fact_check</span>
             물품 검수 및 승인
           </h2>
-          
+
           {selectedOrder ? (
             <div className="flex flex-col h-full overflow-hidden">
               <div className="flex justify-between items-end pb-4 border-b border-white/10 mb-4">
@@ -154,19 +155,19 @@ function OrderHistory() {
                   <p>발주번호: PO-{selectedOrder.id}</p>
                   <p>발주명세: 총 {selectedOrder.items.length}종</p>
                 </div>
-                
+
                 {/* 유통기한 일괄 적용 UI */}
                 {selectedOrder.status === 'PENDING' && (
                   <div className="flex items-center gap-2 bg-black/20 p-2 rounded-xl border border-white/10">
                     <span className="text-sm text-gray-300">유통기한 일괄적용:</span>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       value={bulkDate}
                       onChange={(e) => setBulkDate(e.target.value)}
                       onClick={(e) => e.target.showPicker && e.target.showPicker()}
                       className="bg-black/40 text-white rounded px-2 py-1 border border-white/10 outline-none text-sm cursor-pointer"
                     />
-                    <button 
+                    <button
                       onClick={applyBulkDate}
                       className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-3 py-1 rounded transition-colors"
                     >
@@ -195,8 +196,8 @@ function OrderHistory() {
                         </td>
                         <td className="py-3 text-right text-gray-400">{item.order_qty}개</td>
                         <td className="py-3 text-right">
-                          <input 
-                            type="number" 
+                          <input
+                            type="number"
                             min="0"
                             value={receiptItems[item.product_id]?.received_qty ?? item.order_qty}
                             onChange={(e) => handleItemChange(item.product_id, 'received_qty', e.target.value)}
@@ -205,7 +206,7 @@ function OrderHistory() {
                           />
                         </td>
                         <td className="py-3 text-right">
-                          <input 
+                          <input
                             type="date"
                             value={receiptItems[item.product_id]?.expiration_date || ''}
                             onChange={(e) => handleItemChange(item.product_id, 'expiration_date', e.target.value)}
@@ -223,7 +224,7 @@ function OrderHistory() {
               {/* 하단 승인 버튼 */}
               {selectedOrder.status === 'PENDING' ? (
                 <div className="mt-4 pt-4 border-t border-white/10 flex justify-end">
-                  <button 
+                  <button
                     onClick={handleApprove}
                     disabled={isSubmitting}
                     className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-colors flex items-center gap-2"
