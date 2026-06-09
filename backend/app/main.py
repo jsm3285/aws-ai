@@ -496,12 +496,58 @@ def suggest_orders(db: Session = Depends(database.get_db)):
         suggestions = []
         special_count = 0
         
-        weathers = [
-            {"precip": 0.0, "desc": "맑은 날씨", "icon": "sunny"},
-            {"precip": 5.0, "desc": "약한 비", "icon": "rainy"},
-            {"precip": 20.0, "desc": "많은 비", "icon": "thunderstorm"}
-        ]
-        tomorrow_weather = random.choice(weathers)
+        import requests
+        import urllib.parse
+        
+        # 기상청 단기예보 API 연동
+        service_key = "4b41a790f25ea13d35abbcd0bb564c15ae030d6c9b8db3430c56ea44ef063324"
+        url = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst"
+        
+        base_date = now.strftime("%Y%m%d")
+        base_time = "0500" # 새벽 5시 예보 기준
+        
+        params = {
+            "serviceKey": urllib.parse.unquote(service_key),
+            "pageNo": "1",
+            "numOfRows": "100",
+            "dataType": "JSON",
+            "base_date": base_date,
+            "base_time": base_time,
+            "nx": "60", # 서울
+            "ny": "127"
+        }
+        
+        # 기본 날씨 (API 실패 시 대비)
+        tomorrow_weather = {"precip": 0.0, "desc": "맑음", "icon": "sunny"}
+        try:
+            res = requests.get(url, params=params, timeout=3)
+            if res.status_code == 200:
+                data = res.json()
+                items = data.get("response", {}).get("body", {}).get("items", {}).get("item", [])
+                
+                tmr_str = tomorrow.strftime("%Y%m%d")
+                pop_val = 0 # 강수확률
+                pty_val = 0 # 강수형태
+                
+                for it in items:
+                    if it.get("fcstDate") == tmr_str and it.get("fcstTime") == "1200": # 정오 기준 날씨
+                        if it.get("category") == "POP":
+                            pop_val = int(it.get("fcstValue", 0))
+                        elif it.get("category") == "PTY":
+                            pty_val = int(it.get("fcstValue", 0))
+                
+                # PTY: 0(없음), 1(비), 2(비/눈), 3(눈), 4(소나기)
+                if pty_val == 0:
+                    if pop_val > 50:
+                        tomorrow_weather = {"precip": float(pop_val), "desc": f"흐림 (강수확률 {pop_val}%)", "icon": "cloud"}
+                    else:
+                        tomorrow_weather = {"precip": 0.0, "desc": "맑음", "icon": "sunny"}
+                elif pty_val in [1, 4]:
+                    tomorrow_weather = {"precip": float(pop_val), "desc": f"비 (강수확률 {pop_val}%)", "icon": "rainy"}
+                elif pty_val in [2, 3]:
+                    tomorrow_weather = {"precip": float(pop_val), "desc": f"눈 (강수확률 {pop_val}%)", "icon": "ac_unit"}
+        except Exception as e:
+            print("KMA API error:", e)
         
         weekdays_kor = ["월", "화", "수", "목", "금", "토", "일"]
         tomorrow_weekday_str = weekdays_kor[tomorrow.weekday()]
