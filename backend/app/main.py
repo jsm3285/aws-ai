@@ -496,8 +496,9 @@ def suggest_orders(db: Session = Depends(database.get_db)):
         suggestions = []
         special_count = 0
         
-        import requests
+        import urllib.request
         import urllib.parse
+        import json
         
         # 기상청 단기예보 API 연동
         service_key = "4b41a790f25ea13d35abbcd0bb564c15ae030d6c9b8db3430c56ea44ef063324"
@@ -513,16 +514,19 @@ def suggest_orders(db: Session = Depends(database.get_db)):
             "dataType": "JSON",
             "base_date": base_date,
             "base_time": base_time,
-            "nx": "60", # 서울
-            "ny": "127"
+            "nx": "89", # 대구광역시 중구
+            "ny": "90"
         }
+        query_string = urllib.parse.urlencode(params)
+        full_url = f"{url}?{query_string}"
         
         # 기본 날씨 (API 실패 시 대비)
         tomorrow_weather = {"precip": 0.0, "desc": "맑음", "icon": "sunny"}
         try:
-            res = requests.get(url, params=params, timeout=3)
-            if res.status_code == 200:
-                data = res.json()
+            req = urllib.request.Request(full_url)
+            with urllib.request.urlopen(req, timeout=3) as res:
+                if res.status == 200:
+                    data = json.loads(res.read().decode('utf-8'))
                 items = data.get("response", {}).get("body", {}).get("items", {}).get("item", [])
                 
                 tmr_str = tomorrow.strftime("%Y%m%d")
