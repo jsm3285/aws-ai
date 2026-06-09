@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AIOrders from './pages/AIOrders';
 import OrderHistory from './pages/OrderHistory'; // 이력 페이지 추가
+import SalesHistory from './pages/SalesHistory'; // 판매 내역 추가
 import POSView from './pages/POSView';
 
 function App() {
@@ -26,6 +27,10 @@ function App() {
         <Route 
           path="/history" 
           element={<Layout><OrderHistory /></Layout>} 
+        />
+        <Route 
+          path="/sales-history" 
+          element={<Layout><SalesHistory /></Layout>} 
         />
         <Route 
           path="/pos" 

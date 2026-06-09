@@ -443,6 +443,37 @@ def get_sales_trend(
         "category_distribution": category_distribution
     }
 
+@app.get("/api/dashboard/sales-history")
+def get_sales_history_list(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    sales = db.query(models.SalesHistory)\
+              .filter(models.SalesHistory.sales_qty > 0)\
+              .order_by(models.SalesHistory.date.desc(), models.SalesHistory.id.desc())\
+              .limit(100).all()
+    
+    products = {p.id: p for p in db.query(models.Product).all()}
+    
+    history_list = []
+    for s in sales:
+        p = products.get(s.product_id)
+        p_name = s.product_name or (p.name if p else "알 수 없음")
+        p_cat = s.category or (p.category if p else "기타")
+        p_price = s.unit_price or (p.price if p else 0)
+        history_list.append({
+            "id": s.id,
+            "date": s.date.strftime("%Y-%m-%d") if s.date else "",
+            "product_id": s.product_id,
+            "product_name": p_name,
+            "category": p_cat,
+            "sales_qty": s.sales_qty,
+            "unit_price": p_price,
+            "total_price": s.sales_qty * p_price
+        })
+        
+    return history_list
+
 # --- [기능 5] AI 발주 제안 ---
 @app.get("/api/ai/suggest-orders")
 def suggest_orders(db: Session = Depends(database.get_db)):
