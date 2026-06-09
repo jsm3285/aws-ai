@@ -52,3 +52,9 @@ export const sellItem = async (payload) => {
   const response = await axios.post(`${API_URL}/api/dashboard/sell`, payload, getAuthHeaders());
   return response.data;
 };
+
+// 판매 내역 조회
+export const getSalesHistory = async () => {
+  const response = await axios.get(`${API_URL}/api/dashboard/sales-history`, getAuthHeaders());
+  return response.data;
+};

@@ -11,6 +11,7 @@ function Sidebar() {
     { name: 'DASHBOARD', path: '/dashboard', icon: 'grid_view' },
     { name: 'AI ORDERS', path: '/ai-orders', icon: 'smart_toy' },
     { name: 'ORDER HISTORY', path: '/history', icon: 'history' },
+    { name: 'SALES HISTORY', path: '/sales-history', icon: 'receipt_long' },
     { name: 'POS 결제', path: '/pos', icon: 'point_of_sale' },
   ];
 
